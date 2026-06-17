@@ -30,7 +30,7 @@ Technical requirements:
 - public entry point of the application should be CloudFront or a load balancer;
 - backend servers should not be publicly visible
 - new deployments should be automated and easily to rollback;
-- a staging environment should run beside the production one;
+- development and staging environments should run beside the production one;
 - engineering team and leadership need to be quickly notified when a failue happens, and should be able to collect and inspect logs and errors;
 - AWS infrastructure must use best practice like least privileged access, secure credentials, encryption in transit and at rest;
 - AWS infrastructure must be available in two availability zones at all times, and use proper load balancing and health checks, and scale in and out to meet demand. 
@@ -51,70 +51,72 @@ Technical requirements:
 
 A typical user request will follow this path:
 
-1. The user accesses the application through a custom domain managed in Route 53. The domain "justreadit.com" is pointing to the CloudFront distribution.
-2. The request goes to CloudFront, which drops TLS, and one of two scenario can follow.
-- If the request is for a static or cached asset, the response is served directly from cache or S3, and returned to the client.
-- If the request is an API call (/api/*), it is forwarded to the ALB.
-3. The ALB sees the request and routes it to one of the backend containers, depending on their health checks and the routing algorithm.
-4. Backend container executes the desired endpoint logic, and can communicate with the DB or other internal services like S3 or Secrets Manager to complete the request.
-5. The response is sent back to the client with HTTP 200 if all went well, or an error code and message if not.
+1. The user accesses the application through "justreadit.com", with DNS managed in Route 53. The domain point to the CloudFront distribution.
+2. CloudFront acts as the public entry point and terminates the public TLS connection in order to inspect the request. From there one of two paths is used:
+- Static frontend assets and cacheable content are served from CloudFront cache or retrieved from the origin S3 static asset bucket. S3 buckets are private, and will not be publicly acccessible.
+- API requests, such as `/api/*`, are forwarded to the Application Load Balancer.
+3. The ALB only accepts requests from CloudFront. It routes the request to healthy ECS Fargate tasks running in private subnets across multiple Availability Zones.
+4. The backend service handles the request and, when needed, communicates with private internal services such as RDS PostgreSQL, S3 for private user content, Secrets Manager, and CloudWatch.
+5. The response is returned to the user through the ALB and CloudFront. Successful requests return the expected response, while failures return an appropriate HTTP error code and are logged for monitoring and troubleshooting.
 
 ## Proposed AWS Services
 
-Route 53: 
-Stores DNS records so that domain names can be translated to IP addresses.
-It will store an A record connecting "justreadit.com" to the IP address of the CloudFront distribution that is the app entry point. 
-AWS can take care of updating the record if the CloudFront IP ever changes.
+### Route 53 
+Route 53 manages DNS for "justreadit.com". An alias record points the application domain to the CloudFront distribution, which makes it the entry point for the web application.
+AWS resolves the CloudFront distribution's domain name to the appropriate edge locations.
 
-CloudFront: 
+### CloudFront 
 CDN service that caches static assets in servers spread out across the world, close to end users.
-It will be allowed to read for an origin S3 bucket in order to serve the static frontend web application, image files, and e-books.
-At every request, it will evaluate if a fresh cached version exists and send it back immediately if so. If not, it will get a fresh copy and cache it for the next user.
-Being close to end users means latency is low, and highly popular content will be served rapidly without needing to talk to backend services.
-TLS is terminated at this point (HTTPS becomes HTTP), because the traffic is entering AWS backbone network and is secure and fast. 
+CloudFront serves the frontend application and cacheable public assets like fonts and images. Protected content like e-book files are not publicly cacheable, and are only access after backend authorization.
+CloudFront terminates the public TLS connection and forwards API requests to the ALB over a separate TLS connection.
+At every request, it evaluates if a fresh cached version exists and sends it back immediately if so. If not, it will get a fresh copy and cache it for the next user.
+Being close to end users means latency is low, and highly popular content is served rapidly without requiring an additional call to backend services.
 
-S3: 
-Storage for all types of files, like images, videos or text files.
+### S3 
+The app uses 2 S3 buckets for storage:
+- one for static assets, like the frontend HTML file, Javascript bundles, CSS, images, fonts. This can be widely cached. Public/static content is served through CloudFront, which has access to the bucket as origin;
+- one for private user-uploaded content, like e-books or profile pictures. This is accessed via presigned URLs generated in the backend, and is enforcing stricter rules, like access control, content moderation, malware scanning. It it also making sure private user content (e-books especially) is hosted in Canada, which is a legal requirement.
 It is durable and scales automatically.
-It will be used to store the frontend website, images and e-books.
-It is not publicly accessible, and is only allowed to talk to CloudFront and the backend services.
-Users upload and download content via secured presigned URLs.
+Public access to the buckets is blocked, so direct access by end users is impossible. 
  
-Application Load Balancer:
+### Application Load Balancer
+Internet facing origin for CloudFront, its security group will restrict direct access, so API traffic enters through CloudFront instead of bypassing it.
 Dispatches incoming requests between the available backend containers. 
-A simple algorithm to use for routing is sending the new request to the container with the least amount of request, or lowest CPU utilisation.
-Works together with an auto-scaling group, in order to always keep the desired number of containers running.
-It is performing regular health checks on every instance to make sure they are fit to receive traffic, and stop routing to unhealthy instance automatically.
-Operates on a minimum of 2 AZs, which is designed for supported good availability.
+The ALB distributes API requests across healthy ECS tasks and stops routing traffic to tasks that fail health checks.
+The ALB works together with a target group and ECS Service Auto Scaling in order to adjust the desired count of Fargate tasks based on CloudWatch metrics. The initial scaling policy uses CPU utilization as baseline, with option to add memory utilization or ALB request count per target once real traffic patterns are observed.
+Operates in a minimum of 2 AZs, which is designed for supported good availability.
 
-ECS Fargate:
-Runs the backend application within a container. Fargate mode means that AWS is provisionning, patching and managing the container themselves.
-The backend app is configured to be built as a Docker image, which is stored in AWS Elastic Container Registry ECR.
-It is then easy to pull the latest image from the repository, and run it within a container in ECS.
+### ECS Fargate
+Runs the backend application within a container. Fargate removes the need to provision, patch and manage EC2 instances. The team still owns the application container image, tasks runtime configuration, and application-level security.
+The backend app is configured to be built as a Docker image, which is stored in AWS Elastic Container Registry ECR. It is then easy to pull the latest image from the repository, and run it within a container in ECS.
 Depending on the scaling policy, several containers of the same backend application can be running in parallel.
 ECS containers only accept requests coming from the ALB, and are in a private network which allows them to communicate with the DB securely.
 
-RDS:
-RDS PostgreSQL is the relational database, it is storing all the data needed by the application.
-AWS manages routine maintenance tasks (patching / updates), but otherwise the company is responsible for scaling.
-Storage scaling will be set to automatic.
-Compute scaling will be simple at first, with only one writer instance. Automatic backups and transaction logging will be enabled to allow for a quick recovery time in case of failure.
+### RDS
+RDS PostgreSQL stores relational application data such as users, authors, e-book metadata, orders, invoices and reviews. The production database is deployed in private subnets using a Multi-AZ DB instance deployment.
+In this initial design, the standby database is used for high availability and failover only, it does not serve any traffic. Read/write traffic only go through the primary database endpoint. Automated backups and point-in-time recovery are also enabled because Multi-AZ deployments do not protect against accidental data loss, bad migrations, or application bugs that write incorrect data. 
+Storage auto-scaling is configured so the database can grow without manual resizing.
+Non-production databases (staging, dev, or test environments) may use singe AZ deployments, for lower costs.
 
-Secrets Manager:
-Secure vault that will be storing DB credentials and other API keys or secrets as needed.
-Will rotate secrets periodically automatically, without requiring code changes in the application.
+### Secrets Manager
+Stores DB credentials and other sensitive values such as API keys.
+ECS tasks access these secrets through IAM roles (no hardcoded credentials in the code).
+DB credentials are configured to be automatically rotated.
 
-CloudWatch:
-Monitors the entire AWS infrastructure via metrics and logs.
-It will be configured to alert relevant employees in case of failure (emails, texts, or notification in company messaging app).
+### CloudWatch
+Monitors the AWS infrastructure via metrics and logs, collecting ECS container logs, ALB metrics, RDS metrics, and custom application metrics.
+Alarms are triggered when metrics (CPU/memory utilization, health checks, latency) exceed the defined thresholds. 
+Alerts notify the team in case of failure (emails, texts, or company messaging app notifications).
 
-Terraform:
-The infrastructure will be described entirely in a text file, using the Terraform tool and syntax.
-It will be easy to track changes using version control, rollback changes, and deploy duplicate environments like staging.
-It will also help while deploying the application automatically in CI/CD pipelines.
+### Terraform
+Terraform defines the AWS infrastructure as code.
+It allows the team to review infrastructure changes through pull requests, track changes in version control, and reproduce any environment (dev, staging, prod) consistently.
+It also helps facilitate the process of deploying the application automatically in CI/CD pipelines.
 
-CI/CD:
-The code will live in GitHub, and use GitHub Actions to automatically build and deploy a dev environment on each code change.
+### CI/CD
+GitHub Actions run workflows that build and test the application, push Docker images to ECR, and deploy to ECS.
+Pull requests merged into dev or staging branches are deployed automatically.
+Production deployments require an explicit manual approval step.
 
 ## Key Tradeoffs
 
@@ -128,6 +130,9 @@ RDS VS DynamoDB - Relational VS no-SQL DBs
 DynamoDB is extremely fast and easy to scale. It is using flexible schemas which make it easy to migrate data and iterate quickly.
 However in this case, we expect our datapoints to have strong relationship between each other, and we prefer a tight and enforced schema definition. The nature of the data (users are linked to orders and invoices, writers are linked to e-books and so on) makes it appropriate to be handled in a relational database, as it is structured and won't completely change in the future.
 Moreover, we wish to be able to perform analytics or complex queries on the data, which is less suitable with no-SQL databases.
+
+RDS Single AZ + Backup VS RDS Multi-AZ DB instance deployment VS RDS Multi-AZ DB cluster deployment
+Read/write traffic goes through the primary endpoint, avoiding read-after-write consistency issues that acan appear when using separate read replicas.
 
 ECS Fargate VS ECS self-managed EC2 - Cost VS Operational overhead
 ECS can be configured to run with self-managed EC2 instances, which lowers the bill but comes with increasing operational overhead because the team has to manage the instances themselves. 
@@ -211,7 +216,7 @@ Below are improvements that can be done if the app is growing rapidly, or needs 
 - if the DB is receiving too many connections at once, the backend connection pool can be configured accordingly;
 - if the DB is receiving too many read requests, ElastiCache for Redis can be added to immediately serve popular content without involving the DB at all;
 - if the DB is receiving too many read/write requests, we can add read replicas to serve read traffic, and offload the main writer instance;
-- if the DB needs to be even more resilient to failures, we can deploy it in multiple AZ;
+- if the DB needs to be even more resilient to failures and handle more traffic, we can deploy change the design to a Multi-AZ DB cluster deployment, which involves one writer instance and 2 reader instance, each in different AZs. In this case the application will need to consider data freshness when routing requests to the database;
 - if the app needs to improve its availability globally, multi region active-active deployments, S3 global accelerator, a migration to Aurora Global database can be considered. No schema changes are needed since PostgreSQL is supported;
 
 ## Conclusion
