@@ -120,28 +120,34 @@ Production deployments require an explicit manual approval step.
 
 ## Key Tradeoffs
 
-CloudFront - Availability and performance VS simplicity
-Adding CloudFront as entry point to the application adds some complexity, with one more moving part to worry about.
-The benefits are multiple:
-- lower latency because it is located geographically near end users, and maintain its own cache
-- CloudFront is a global service managed by AWS. It is extremely difficult to overwhelm for malicious actors. Having it as entry point is a security and can make it easy to drop undesirable requests early on.
+### CloudFront - Availability and performance VS simplicity
+CloudFront adds operational complexity that the team must understand, such as cache invalidation, harder debugging with one extra layer, and separate behaviour for static assets and API requests.
+However it improves global delivery because edge locations are geographically near end users, which lower latency. It also reduces the load on S3 and the ALB, and acts as a clean entry point for TLS.
 
-RDS VS DynamoDB - Relational VS no-SQL DBs
-DynamoDB is extremely fast and easy to scale. It is using flexible schemas which make it easy to migrate data and iterate quickly.
-However in this case, we expect our datapoints to have strong relationship between each other, and we prefer a tight and enforced schema definition. The nature of the data (users are linked to orders and invoices, writers are linked to e-books and so on) makes it appropriate to be handled in a relational database, as it is structured and won't completely change in the future.
-Moreover, we wish to be able to perform analytics or complex queries on the data, which is less suitable with no-SQL databases.
+### RDS VS DynamoDB - Relational VS no-SQL DBs
+DynamoDB is fast and easy to scale, and uses a key-value access pattern that does not enforce strict data schemas. It is suitable for high-scale workloads with predictable requests that can be indexed effeciently. 
+However in this case, we expect our data to be strongly relational, and we prefer a tight and enforced schema definition. The nature of the data (users are linked to orders and invoices, writers are linked to e-books and so on) makes it appropriate to be handled in a relational database, as it is structured and will be easy to query using joins, transactions and foreign keys.
 
-RDS Single AZ + Backup VS RDS Multi-AZ DB instance deployment VS RDS Multi-AZ DB cluster deployment
-Read/write traffic goes through the primary endpoint, avoiding read-after-write consistency issues that acan appear when using separate read replicas.
+### RDS Single AZ + Backup VS RDS Multi-AZ DB instance deployment VS RDS Multi-AZ DB cluster deployment
+RDS Single AZ deployment offers simplicity and low cost, and is suitable for non-production environments or prototyping.
+One requirement for this architecture is to avoid a single point of failure, so we want to take the DB deployment one step further with Multi-AZ DB instance deployment. This means that the database is synchronously replicated to a standby instance, which will automatically take over if the primary writer becomes unavailable. It is slightly more complex than the Single AZ deployment, but significantly more resilient to failures. 
+The standby instance is only use for high availability, it does not serve traffic. Read/write traffic goes through the primary endpoint, avoiding read-after-write consistency issues that acan appear when using separate read replicas.
+The most resilient and performant design is the Multi-AZ DB cluster deployment, which includes one writer instance and 2 reader instances, all in different AZs. This is more complex as concurrency issues can occur and need to be dealt with. It is also more costly, so for this first design, Multi-AZ DB instance deployment is the better choice.
 
-ECS Fargate VS ECS self-managed EC2 - Cost VS Operational overhead
+### ECS Fargate VS ECS self-managed EC2 - Cost VS Operational overhead
 ECS can be configured to run with self-managed EC2 instances, which lowers the bill but comes with increasing operational overhead because the team has to manage the instances themselves. 
-The team being small and the "self-managed" path was chosen for the DB, it makes sense to opt for the frictionless AWS-managed Fargate for the compute side.
-If costs increase to much, it is not a huge effort to switch to ECS EC2 because the app is shipped as a Docker container already.
+Design decision around the database (RDS PostgreSQL) requires operational attention from the team, so reducing overhead for compute operations using Fargate is a reasonable tradeoff.
+If Fargate-specific costs are too high, the team can switch to ECS EC2 without much friction because the app is shipped as a Docker container already.
 
-## Cost Assumptions
+### CloudFront signed URLs VS S3 presigned URLs - Performance VS Data residency compliance and simplicity
+For the initial design, the decision is to use S3 presigned URLs for protected e-books downloads. It is simpler to implement, and lets the backend confirm the user is authorized to view the file before each download, while keeping a strict "no public access" policy on the bucket.
+E-books will not benefit from CloudFront caching at launch, so latency may increase for users far from the Canada West region. It is the target region for the initial launch so the tradeoff makes sense. A requirement is to store e-books in Canada for intellectual property reasons, so caching at edge locations may violate the requirement (depending on whether it is acceptable to store a cached version outside Canada). If the IP requirement allows it, and high download traffic is observed globally, CloudFront caching can be considered to improve performance.
+
+## Sizing and Cost Assumptions
 
 This section provides estimates about expected traffic and cost. Numbers are approximate and are meant to be order of magnitude rather than hard projections.
+
+### Traffic assumptions
 
 The architecture is designed for a SaaS product expected to reach 10,000 to 50,000 monthly active users within the first year.
 Because monthly active users do not translate directly into infrastructure load, we are making the following assumptions:
@@ -153,6 +159,7 @@ Because monthly active users do not translate directly into infrastructure load,
 - Each API request generates 1–5 database reads on average.
 - Only a minority of requests create or update data.
 
+These API requests estimates represent traffic reaching the backend services. Static and cached content are served primarily by CloudFront and S3, which reduces the number of requests that reach the ALB and ECS.
 The following traffic estimates are calculated based on the upper limit of expected growth, 50k monthly active users:
 
 - 50,000 monthly active users
@@ -163,27 +170,41 @@ The following traffic estimates are calculated based on the upper limit of expec
 - 15 average requests per second 
 - 100–150 peak requests per second
 
-The following storage estimates are based on these assumptions:
-- store account data (1 per user) -> 1-5 KB
-- store e-books metadata (2 per author/year) -> 5-10 KB * 2 = 20 KB 
-- store reading lists (1 per user) -> 1-2 KB
-- store reviews (10 per user/year) -> 2-4 KB * 10 = 40 KB
-- store events (50 per user/year) -> 1-2 KB * 50 = 100 KB
-- store audit logs (200 per user/year) -> 0.5-1 KB * 200 = 200 KB
-- in total for one user per year, we end up eround ~400 KB
+### Database storage assumptions
 
-(calculation example for a "review" field: 500 characters + a user foreign key + a book foreign key + timestamps/status = 500 bytes + 16 + 16 + 16 = less than 1KB for a most basic review)
+Database storage is estimated using record categories rather than exact table sizes. They are intended for capacity planning only.
 
-- 50,000 user profiles
-- At ~400 KB per user -> 400 KB * 50000 = 20 GB of raw data per year
-- Multiply by 2 to account for database indexes and overhead -> 2 * 20 GB = 40 GB per year of DB storage
+| Record category | Assumption | Planning size | Raw estimate |
+|---|---:|---:|---:|
+| User/account records | 50,000 users × 5 records/user | 2 KB | ~500 MB |
+| Book metadata | 10,000 books/year (2 books per author/year) | 10 KB | ~100 MB |
+| Orders/invoices | 45,000 customers × 5 orders/year | 5 KB | ~1.1 GB |
+| Reviews/comments | 45,000 customers × 5 reviews/year | 3 KB | ~0.7 GB |
+| Application events | 50,000 users × 100 events/year | 1 KB | ~5 GB |
+| Audit/security logs | 50,000 users × 100 events/year | 1 KB | ~5 GB |
 
-For S3:
+This gives roughly 12.5 GB of raw relational data after one year. We multiply this raw total by 2 to 3 to account for indexes, database overhead, and error margin for an estimated RDS storage range of 25-40 GB on the first year.
 
-- 10% of 50k users are writers = 5000 writers
-- Average e-book size is 2 MB, at 2 books per author per year -> 2 * 2 MB * 5000 = 20 GB
-- For 5000 writers -> 4 MB * 5000 = 20 GB per year
-- Total S3 storage per year -> 20 GB + 20 GB = 40 GB 
+The production database is initially allocated 100 GB of storage with autoscaling enabled, to keep the initial configuration simple and leave room for growth.
+
+### S3 storage assumptions
+
+For S3 private user content:
+
+- 10% of 50,000 users are writers = 5,000 writers
+- Each writer uploads 2 e-books per year
+- Average e-book file size is 2 MB
+
+This gives a total of 5,000 x 2 x 2 MB = ~20 GB of e-book files per year
+
+### Main AWS cost drivers
+
+This section describes the main AWS services that drive cost.
+
+- ECS Fargate 
+
+### Cost-control decisions
+
 
 ## Security Considerations
 
