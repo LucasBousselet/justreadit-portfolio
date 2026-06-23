@@ -92,6 +92,11 @@ The backend app is configured to be built as a Docker image, which is stored in 
 Depending on the scaling policy, several containers of the same backend application can be running in parallel.
 ECS containers only accept requests coming from the ALB, and are in a private network which allows them to communicate with the DB securely.
 
+### NAT Gateway / VPC Endpoints - Private subnet outbound access
+ECS Fargate tasks run in private subnets, so they are not directly reachable from the internet. However, they still need outbound access to AWS services such as ECR, CloudWatch Logs, Secrets Manager, and S3, which are not part of the VPC. They may also need to call external services providers to handle emails or payments for example.
+In this initial design, private outbound access is controlled via a NAT Gateway for general internet access, and via VPC endpoints for private AWS service traffic.
+The exact mix should be validated during implementation, with tradeoffs discussed in the "Cost Assumptions" section.  
+
 ### RDS
 RDS PostgreSQL stores relational application data such as users, authors, e-book metadata, orders, invoices and reviews. The production database is deployed in private subnets using a Multi-AZ DB instance deployment.
 In this initial design, the standby database is used for high availability and failover only, it does not serve any traffic. Read/write traffic only go through the primary database endpoint. Automated backups and point-in-time recovery are also enabled because Multi-AZ deployments do not protect against accidental data loss, bad migrations, or application bugs that write incorrect data. 
@@ -185,7 +190,7 @@ Database storage is estimated using record categories rather than exact table si
 
 This gives roughly 12.5 GB of raw relational data after one year. We multiply this raw total by 2 to 3 to account for indexes, database overhead, and error margin for an estimated RDS storage range of 25-40 GB on the first year.
 
-The production database is initially allocated 100 GB of storage with autoscaling enabled, to keep the initial configuration simple and leave room for growth.
+The production database is initially allocated 100 GB of storage with autoscaling enabled, to keep the initial configuration simple and leave room for growth. Instance size is a db.t4g.medium or equivalent, Multi-AZ, and automated backups + PITR. This starting point is reasonable but CPU, memory, connection count and latency should be monitored after launch to determine if vertical scaling is necessary.
 
 ### S3 storage assumptions
 
@@ -199,20 +204,62 @@ This gives a total of 5,000 x 2 x 2 MB = ~20 GB of e-book files per year
 
 ### Main AWS cost drivers
 
-This section describes the main AWS services that drive cost.
+The initial design combines AWS services that incur a fixed cost, and some whose cost is traffic-based.
+Main drivers of fixed costs are:
+- RDS production database and its Multi-AZ standby, which are always on;
+- ECS Fargate baseline tasks, which has at least 2 prod tasks running in parallel as baseline;
+- ALB, NAT Gateway, VPC endpoints and CloudWatch alarms, which are always on;
+- Secrets Manager, which adds cost per-secret. 
 
-- ECS Fargate 
+Other costs that grow with usage:
+- S3 storage which will get bigger over time, plus data transfer costs;
+- CloudFront data transfer costs;
+- RDS storage and backups;
+- NAT Gateway data transfer costs;
+- CloudWatch logs ingestion + storage;
+- extra ECS tasks during traffic peaks;
+
+### AWS Pricing Calculator
+
+Always-on-resources cost is calculated using a baseline of 730h per month.
+Using AWS Pricing Calculator, we end up at around 200-300 dollars per month. This figure is a rough estimate and final sizing requires load testing and production metrics. 
 
 ### Cost-control decisions
 
+- Use ECS Fargate with a baseline of 2 tasks in production. Starting size for the ECS instance is a modest 0.5 vCPU and 1 GB of memory.
+- Use RDS Multi-AZ for production and Single-AZ for staging.
+- Use smaller ECS Fargate and RDS capacity for staging 
+- Set CloudWatch log retention to 30 days.
+- Use S3 lifecycle policies for old logs, exports, and temporary files.
+- Use AWS Budgets and billing alarms for monitoring monthly cost. Tag resources by environment and service.
+- Review Compute Savings Plans or Reserved Instances only after initial launch, and when traffic stabilizes.
 
 ## Security Considerations
 
-Security in AWS will be managed by:
-- IAM permissions for who can access can make what API calls within AWS. The principle of least privilege must always apply, only providing a user or service with the minimal set of permissions to handle the job they need;
-- Security groups and network access lists will be used to secure the network from unwelcome traffic;
-- Private secrets must not be exposed in the app nor visible in the code, but will be stored in AWS Secrets Manager;
-- Essential data will be backed up regularly, like S3 objects and database tables;
+### Identity and access control
+The principle of least privilege must always apply, only providing a user or service with the minimal set of permissions to handle the job they need. 
+ECS tasks use IAM roles rather than long-lived AWS access keys. These roles can only read data from the specific S3 bucket (or down to the path if relevant) that stores user content it needs, retrieve only required secrets from AWS Secrets Manager, and write logs to CloudWatch. Company employees access AWS via users and groups and production access is limited to a small group of users. MFA is enabled across the account.
+
+### Network security
+CloudFront is the application public entry point, funneling all incoming traffic. The ALB spans across public subnets, but is intended to receive API traffic from CloudFront only.
+ECS tasks and the RDS database run in private subnets, and are not publicly accessible. RDS only accepts requests coming from the ECS security group.
+S3 buckets block all direct public access.
+
+### Data protection
+Data is encrypted in transit using HTTPS between users and CloudFront, and also between CloudFront and the ALB.
+Data at rest is encrypted for RDS, S3 and Secrets Manager using AWS-managed KMS keys.
+
+### File upload and download security
+User-uploaded files are a major attack vector, and must be secured appropriately.
+All uploads and downloads will be done through a presigned URL generated by the backend, valid for a limited time only, so that user interactions with S3 are controlled.
+File type is validated, and size limits enforced. 
+Malware scanning can be discussed as an initial requirement or a future improvement.
+
+### Monitoring and auditability
+
+The application handles purchases and invoices, so auditability matters.
+AWS CloudTrail tracks API calls made within AWS.
+The application produces audit logs for sensitive business actions like purchases.
 
 ## Reliability Considerations
 
