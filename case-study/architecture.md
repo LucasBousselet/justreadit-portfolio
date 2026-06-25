@@ -263,29 +263,88 @@ The application produces audit logs for sensitive business actions like purchase
 
 ## Reliability Considerations
 
-Availability of the system will be assured by:
-- a frontend stored in S3, which has a 99.9999% availability;
-- a backend served by 2 instances minimum at all times, if one fails it will be detected immediately via regular health checks, and replaced automatically by the autoscaling group;
-- backend will be queried through a load balancer, which will spread out traffic evenly across available instances, in order not to overwhelm any one instance;
-- alarms will trigger when instances become unresponsive, experience high CPU load, or when application code caused a crash;
-- database data will be backed up every hour, and transaction logs will allow for a quick recovery time and a dataloss of less than 1 minute.
+The architecture's availability is improved through multi-availabiliy-zone deployment, health checks and replacement of unhealthy instances, and managed storage, backups, and monitoring services.
+
+### Application availability
+
+The backend API runs as ECS Fargate containers with a minimum of 2 tasks, deployed in two AZs, and monitored via health checks by the ALB. The ALB spreads out traffic evenly across healthy tasks, in order not to overwhelm any one task. If a task becomes unhealthy, the ALB stops sending traffic to it, and ECS autoscaling replaces it to maintain the desired number of tasks running. Metrics like CPU utilization, memory usage or ALB request count can be monitored and trigger the ECS autosscaling to add or remove tasks from the pool, within the confiuration limits.
+
+### Static assets and files availability
+
+Static assets are stored in S3 and served through CloudFront, both managed AWS services designed for high availability. This reduces the load on the backend when content is served from cache or S3.
+Protected e-books files are stored in S3 in the Canada region. Serving these files rely on backend authorization and S3 short-lived URLs, so e-books availability depends on both these services.  
+
+### Database availability and recovery
+
+RDS has automated backups and point-in-time-recovery enabled, allowing the database to be restored to a recent state within the retention period. Together, they protect against accidental data deletion, bad migrations, or corrupted data.
+RDS deployment is Multi-AZ instance deployment, where a standby instance is synchronously kept on hand to take over during a failure of the main instance. The standby instance does not serve real traffic, which keeps the read/write model simple for this initial design.
+Disaster recovery handbooks should define how the team responds to a range of potential failures, from bad migration to regional failure.
+
+### Monitoring and alerting
+
+CloudWatch collects application logs, ECS/ALB/RDS metrics. The team can configure alarms when CPU/memory utilization, failed health checks, connection errors or storage limits 
+thresholds are exceeded.
+
+Design limits and potential failures are discussed in "Risks and Future Improvements" section.
 
 ## Deployment Workflow
 
-Terraform will be used to define the architecture using code, which makes it easy to version, track changes and rollback in case of issue.
-Moreover, it will be easy to duplicate prod-like environments for dev and test purposes.
-CI/CD pipelines in GitHub Actions will deploy a new version of the application every time a commit is pushed to the staging environment.
-The pipelines will automatically run unit tests, build the application and generate a Docker image, push the image to ECR, and deploy it in ECS.
+### Infrastructure worklow
+
+Terraform manages long-lived infrastructure using code, and can create and update AWS resources such as VPC/networking elements, ECS service, ALB and listeners, RDS, S3 buckets, IAM roles, and CloudWatch alarms.
+Committing Terraform files to GitHub version control makes it easy to version and track changes.  
+Moreover, it makes it easy to duplicate prod-like environments for dev and test purposes.
+Infrastructure rollbacks must be handled through reviewing the changes before applying. Destructive changes such as database modifications require caution and backups before proceeding.
+
+### Application workflow
+
+GitHub Actions manage application delivery: running tests, building the application Docker image from the source code, pushing the image to ECR and updating the ECS service to create a new task definition referencing the new image.
+During deployment, ECS starts new tasks with the update task definition and registers them with the ALB target group. The ALB health checks must pass before the old tasks are shut down.
+Merging code to the develop/main branches automatically runs unit tests and deploys to dev/staging environments.
+Each Docker image is tagged with the commit SHA it belongs to, which makes deployments traceable and enables rolling back ECS to a previous task definition that referenced a working Docker image.
+Production deployment require a manual approval step, identifying the Docker image that will be promoted using the commit SHA, and optionally adding a mutable "prod" tag that points to the latest prod version. The desired commit SHA is fed into the GitHub Action workflow that deploys to the production environment.
+
+### Public keys and private secrets handling in CI/CD
+
+Public keys such as API keys needed by the frontend are automatically exposed in the browser, and inherently insecure. They are baked into the application bundle during the build process. If possible, they should be restricted to a short list of white-listed domain only.
+
+Private secrets are not hardcoded into the code, but are retrieved at runtime by ECS tasks from Secrets Manager using IAM task roles.
 
 ## Risks and Future Improvements
 
-Below are improvements that can be done if the app is growing rapidly, or needs improved availability and resiliency:
-- if traffic spikes are triggering ECS container outages, we can increase the computing power of each ECS instance easily (vertical scaling), or add more instance in the auto scaling group (horizontal scaling);
-- if the DB is receiving too many connections at once, the backend connection pool can be configured accordingly;
-- if the DB is receiving too many read requests, ElastiCache for Redis can be added to immediately serve popular content without involving the DB at all;
-- if the DB is receiving too many read/write requests, we can add read replicas to serve read traffic, and offload the main writer instance;
-- if the DB needs to be even more resilient to failures and handle more traffic, we can deploy change the design to a Multi-AZ DB cluster deployment, which involves one writer instance and 2 reader instance, each in different AZs. In this case the application will need to consider data freshness when routing requests to the database;
-- if the app needs to improve its availability globally, multi region active-active deployments, S3 global accelerator, a migration to Aurora Global database can be considered. No schema changes are needed since PostgreSQL is supported;
+The initial architecture is designed to balance cost and reliability/performance, providing a reasonable starting point. 
+Some measure of risk still exist, and listed below. With each one, there is a description of the risk, a possible improvement to mitigate it, and the reason why it was not included in the initial plan.
+
+Risk: ECS tasks are unable to handle traffic spikes, due to memory or CPU constraints
+Possible improvement: Scale vertically by increasing Fargate task CPU/memory or scale horizontally by adding more tasks in parallel
+Why not included initially: Initial traffic is moderate, so the service starts with modest task sizes and autoscaling rules.
+
+Risk: Database connections become a bottleneck
+Possible improvement: Tune application connection pools or add RDS Proxy between DB and backend
+Why not included initially: Adds another managed component and cost, it is not needed until connection pressure is observed
+
+Risk: Database read queries become slow
+Possible improvement: Add read replicas, improve indexes, or add a caching layer with ElastiCache for Redis. CloudFront can be considered for caching public content.
+Why not included initially: Using a single primary database keeps data consistency simple to manage. Data freshness is more difficult to manage with a separate reader endpoint, or with a Multi-AZ DB cluster deployment (1 writer / 2 readers in separate AZs)
+
+Risk: User-uploaded files create security risk or require moderation rules
+Possible improvement: Add malware scanning and moderation checking workflows
+Why not included initially: Basic file validation is included first, which can then grow into a more in-depth scan which would add cost and complexity
+
+Risk: File processing routines are slow or divert resources from user requests (if malware scanning / moderation improvements are implemented)
+Possible improvement: Move long-running jobs to separate workers, decoupled from the main backend via a AWS SQS queue
+Why not included initially: Cost and complexity of asynchronous workers not justified at first
+
+Risk: Malicious or bot requests activity is increasing
+Possible improvement: Add AWS WAF rule and rate limiting
+Why not included initially: Real traffic should be observed before setting up WAF, in order to avoid unnecessary cost and false positive
+
+Risk: Stronger disaster recovery strategy is required
+Possible improvement: Add cross-region backups, handbook cross-region restore procedures, or multi-region deployments
+Why not included initially: Full multi-region active-active deployments are costly and complex, and not justified at project launch
+
+Near-term improvements are likely to focus on performance tuning and user-uploaded content validation.
+Medium to long-term improvements are likely to focus on adding Redis caching, asynchronous workers or RDS Proxy. 
 
 ## Conclusion
 
