@@ -344,11 +344,14 @@ Possible improvement: Add cross-region backups, handbook cross-region restore pr
 Why not included initially: Full multi-region active-active deployments are costly and complex, and not justified at project launch
 
 Near-term improvements are likely to focus on performance tuning and user-uploaded content validation.
-Medium to long-term improvements are likely to focus on adding Redis caching, asynchronous workers or RDS Proxy. 
+Medium to long-term improvements are likely to focus on adding Redis caching, asynchronous workers or RDS Proxy, and eventually considering a multi-region deployment. 
 
 ## Conclusion
 
-The suggested architecture is appropriate for a small SaaS company that wants to launch a strong product while keeping cost low.
-It is maintainable by a small team of engineers, and can easily be scaled up without code changes or important refactoring efforts.
-It is using a mix of AWS-managed and self-managed services, but the team is not locked into one posture forever, and can decide to lean more towards either side with minimal efforts (migration to Aurora DB for less operational involment, or move to ECS EC2 for more control over the computing servers).
-Reasonable and documented estimates have been used to size the initial architecture, which can be scaled up or down depending on actual growth.
+The suggested architecture is appropriate for JustReadIt as it is preparing to launch a reliable first production version while keeping infrastructure cost and complexity under control.
+It is maintainable by a small team of engineers, as it uses AWS-managed services in order to reduce operational overhead on common concerns like container orchestration, storage and CDN delivery, while keeping enough control over the application runtime and deployment workflows. 
+The team is not locked into one posture forever though, and can decide to lean towards either a more AWS-managed or self-managed architecture in the future, without huge refactoring efforts.
+The design prioritizes a reliable single-region deployment in Canada, predictable operating costs, simple scaling rules. ECS Fargate allows the backend application to scale horizontally, RDS PostgreSQL provides relational data storage, and S3 durable object storage for public assets and private user content.
+The first scaling steps such as increasing ECS task count or RDS instance size can be done without code changes. Further scaling efforts may require some refactoring efforts, to implement caching, read replicas or asynchronous workers.
+The architecture intentionally avoids over-engineering at launch, leaving multi-region deployments, read-replicas or asynchronous workers out of the initial plan. They can be introduced later if growth or requirements justify the added cost and complexity.
+Reasonable and documented estimates have been used to size the initial architecture, which can be scaled up or down depending on actual growth. These estimates should be validated with load testing, CloudWatch metrics and AWS Cost Explorer after launch, and tuned if needed to adjust ECS tasks size, database capacity, or caching behaviour.
