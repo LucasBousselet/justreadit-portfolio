@@ -10,9 +10,9 @@ JustReadIt is a fictional company that wants to create a web application to sell
 The company has 20 employees and is planning on operating in Canada first, with plans to expand to the USA or Europe in the future.
 The web application is expected to serve between 10k and 50k single users each month:
 - about 90% of users are customers, using the web app to purchase e-books;
-- about 10% os users are writers, using the web app to upload their work and distribute it.
+- about 10% of users are writers, using the web app to upload their work and distribute it.
 
-Business contraints:
+Business constraints:
 - company wants predictable and controlled monthly cost for running the infrastructure;
 - company has a small engineering team of 4 people, so they need an architecture that is easy to understand and maintain; 
 - company can commit to using AWS services for long term (3 years);
@@ -31,7 +31,7 @@ Technical requirements:
 - backend servers should not be publicly visible
 - new deployments should be automated and easily to rollback;
 - development and staging environments should run beside the production one;
-- engineering team and leadership need to be quickly notified when a failue happens, and should be able to collect and inspect logs and errors;
+- engineering team and leadership need to be quickly notified when a failure happens, and should be able to collect and inspect logs and errors;
 - AWS infrastructure must use best practice like least privileged access, secure credentials, encryption in transit and at rest;
 - AWS infrastructure must be available in two availability zones at all times, and use proper load balancing and health checks, and scale in and out to meet demand. 
 
@@ -51,12 +51,12 @@ Technical requirements:
 
 A typical user request will follow this path:
 
-1. The user accesses the application through "justreadit.com", with DNS managed in Route 53. The domain point to the CloudFront distribution.
+1. The user accesses the application through "justreadit.com", with DNS managed in Route 53. The domain points to the CloudFront distribution.
 2. CloudFront acts as the public entry point and terminates the public TLS connection in order to inspect the request. From there one of two paths is used:
-- Static frontend assets and cacheable content are served from CloudFront cache or retrieved from the origin S3 static asset bucket. S3 buckets are private, and will not be publicly acccessible.
+- Static frontend assets and cacheable content are served from CloudFront cache or retrieved from the origin S3 static asset bucket. S3 buckets are private, and will not be publicly accessible.
 - API requests, such as `/api/*`, are forwarded to the Application Load Balancer.
-3. The ALB only accepts requests from CloudFront. It routes the request to healthy ECS Fargate tasks running in private subnets across multiple Availability Zones.
-4. The backend service handles the request and, when needed, communicates with private internal services such as RDS PostgreSQL, S3 for private user content, Secrets Manager, and CloudWatch.
+3. The ALB receives requests coming from CloudFront. It routes the request to healthy ECS Fargate tasks running in private subnets across multiple Availability Zones.
+4. The backend service handles the request and, when needed, communicates with private internal services such as RDS PostgreSQL, S3 for private user content, Secrets Manager, and CloudWatch. Backend communication details are omitted on the diagram, but explained in the next section. 
 5. The response is returned to the user through the ALB and CloudFront. Successful requests return the expected response, while failures return an appropriate HTTP error code and are logged for monitoring and troubleshooting.
 
 ## Proposed AWS Services
@@ -67,7 +67,7 @@ AWS resolves the CloudFront distribution's domain name to the appropriate edge l
 
 ### CloudFront 
 CDN service that caches static assets in servers spread out across the world, close to end users.
-CloudFront serves the frontend application and cacheable public assets like fonts and images. Protected content like e-book files are not publicly cacheable, and are only access after backend authorization.
+CloudFront serves the frontend application and cacheable public assets like fonts and images. Protected content such as e-book files is not publicly cacheable by default, and are only accessed after backend authorization.
 CloudFront terminates the public TLS connection and forwards API requests to the ALB over a separate TLS connection.
 At every request, it evaluates if a fresh cached version exists and sends it back immediately if so. If not, it will get a fresh copy and cache it for the next user.
 Being close to end users means latency is low, and highly popular content is served rapidly without requiring an additional call to backend services.
@@ -75,7 +75,7 @@ Being close to end users means latency is low, and highly popular content is ser
 ### S3 
 The app uses 2 S3 buckets for storage:
 - one for static assets, like the frontend HTML file, Javascript bundles, CSS, images, fonts. This can be widely cached. Public/static content is served through CloudFront, which has access to the bucket as origin;
-- one for private user-uploaded content, like e-books or profile pictures. This is accessed via presigned URLs generated in the backend, and is enforcing stricter rules, like access control, content moderation, malware scanning. It it also making sure private user content (e-books especially) is hosted in Canada, which is a legal requirement.
+- one for user-uploaded content, like e-books, cover images or profile pictures. Public objects (cover images, profilte pictures) are cacheable and may be served through CloudFront, while protected e-books are accessed via presigned URLs generated in the backend. This separation makes it possible to enforce stricter rules, like access control, content moderation, and malware scanning. It it also making sure private user content (e-books especially) is hosted in Canada, which is a legal requirement.
 It is durable and scales automatically.
 Public access to the buckets is blocked, so direct access by end users is impossible. 
  
@@ -94,19 +94,22 @@ ECS containers only accept requests coming from the ALB, and are in a private ne
 
 ### NAT Gateway / VPC Endpoints - Private subnet outbound access
 ECS Fargate tasks run in private subnets, so they are not directly reachable from the internet. However, they still need outbound access to AWS services such as ECR, CloudWatch Logs, Secrets Manager, and S3, which are not part of the VPC. They may also need to call external services providers to handle emails or payments for example.
-In this initial design, private outbound access is controlled via a NAT Gateway for general internet access, and via VPC endpoints for private AWS service traffic.
+In this initial design, private outbound access is controlled via a NAT Gateway and VPC endpoints.
+NAT Gateways live in a public subnet and intended for general internet access, to reach third-party services such as email providers.
+Interface VPC Endpoints live in a private subnet and allow communication with private AWS services such as Secrets Manager.
+Gateway VPC Endpoints live in the private subnet's routing table, and enable the backend to send requests to the private S3 bucket. 
 The exact mix should be validated during implementation, with tradeoffs discussed in the "Cost Assumptions" section.  
 
 ### RDS
 RDS PostgreSQL stores relational application data such as users, authors, e-book metadata, orders, invoices and reviews. The production database is deployed in private subnets using a Multi-AZ DB instance deployment.
 In this initial design, the standby database is used for high availability and failover only, it does not serve any traffic. Read/write traffic only go through the primary database endpoint. Automated backups and point-in-time recovery are also enabled because Multi-AZ deployments do not protect against accidental data loss, bad migrations, or application bugs that write incorrect data. 
 Storage auto-scaling is configured so the database can grow without manual resizing.
-Non-production databases (staging, dev, or test environments) may use singe AZ deployments, for lower costs.
+Non-production databases (staging, dev, or test environments) may use Single-AZ deployments, for lower costs.
 
 ### Secrets Manager
 Stores DB credentials and other sensitive values such as API keys.
 ECS tasks access these secrets through IAM roles (no hardcoded credentials in the code).
-DB credentials are configured to be automatically rotated.
+RDS database credentials can be configured to be automatically rotated, while third-party API keys are rotated manually or through custom automation when possible.
 
 ### CloudWatch
 Monitors the AWS infrastructure via metrics and logs, collecting ECS container logs, ALB metrics, RDS metrics, and custom application metrics.
@@ -130,13 +133,13 @@ CloudFront adds operational complexity that the team must understand, such as ca
 However it improves global delivery because edge locations are geographically near end users, which lower latency. It also reduces the load on S3 and the ALB, and acts as a clean entry point for TLS.
 
 ### RDS VS DynamoDB - Relational VS no-SQL DBs
-DynamoDB is fast and easy to scale, and uses a key-value access pattern that does not enforce strict data schemas. It is suitable for high-scale workloads with predictable requests that can be indexed effeciently. 
+DynamoDB is fast and easy to scale, and uses a key-value access pattern that does not enforce strict data schemas. It is suitable for high-scale workloads with predictable requests that can be indexed efficiently. 
 However in this case, we expect our data to be strongly relational, and we prefer a tight and enforced schema definition. The nature of the data (users are linked to orders and invoices, writers are linked to e-books and so on) makes it appropriate to be handled in a relational database, as it is structured and will be easy to query using joins, transactions and foreign keys.
 
-### RDS Single AZ + Backup VS RDS Multi-AZ DB instance deployment VS RDS Multi-AZ DB cluster deployment
-RDS Single AZ deployment offers simplicity and low cost, and is suitable for non-production environments or prototyping.
-One requirement for this architecture is to avoid a single point of failure, so we want to take the DB deployment one step further with Multi-AZ DB instance deployment. This means that the database is synchronously replicated to a standby instance, which will automatically take over if the primary writer becomes unavailable. It is slightly more complex than the Single AZ deployment, but significantly more resilient to failures. 
-The standby instance is only use for high availability, it does not serve traffic. Read/write traffic goes through the primary endpoint, avoiding read-after-write consistency issues that acan appear when using separate read replicas.
+### RDS Single-AZ + Backup VS RDS Multi-AZ DB instance deployment VS RDS Multi-AZ DB cluster deployment
+RDS Single-AZ deployment offers simplicity and low cost, and is suitable for non-production environments or prototyping.
+One requirement for this architecture is to avoid a single point of failure, so we want to take the DB deployment one step further with Multi-AZ DB instance deployment. This means that the database is synchronously replicated to a standby instance, which will automatically take over if the primary writer becomes unavailable. It is slightly more complex than the Single-AZ deployment, but significantly more resilient to failures. 
+The standby instance is only use for high availability, it does not serve traffic. Read/write traffic goes through the primary endpoint, avoiding read-after-write consistency issues that can appear when using separate read replicas.
 The most resilient and performant design is the Multi-AZ DB cluster deployment, which includes one writer instance and 2 reader instances, all in different AZs. This is more complex as concurrency issues can occur and need to be dealt with. It is also more costly, so for this first design, Multi-AZ DB instance deployment is the better choice.
 
 ### ECS Fargate VS ECS self-managed EC2 - Cost VS Operational overhead
@@ -146,7 +149,7 @@ If Fargate-specific costs are too high, the team can switch to ECS EC2 without m
 
 ### CloudFront signed URLs VS S3 presigned URLs - Performance VS Data residency compliance and simplicity
 For the initial design, the decision is to use S3 presigned URLs for protected e-books downloads. It is simpler to implement, and lets the backend confirm the user is authorized to view the file before each download, while keeping a strict "no public access" policy on the bucket.
-E-books will not benefit from CloudFront caching at launch, so latency may increase for users far from the Canada West region. It is the target region for the initial launch so the tradeoff makes sense. A requirement is to store e-books in Canada for intellectual property reasons, so caching at edge locations may violate the requirement (depending on whether it is acceptable to store a cached version outside Canada). If the IP requirement allows it, and high download traffic is observed globally, CloudFront caching can be considered to improve performance.
+E-books will not benefit from CloudFront caching at launch, so latency may increase for users far from the Canada ca-central-1 region. It is the target region for the initial launch so the tradeoff makes sense. A requirement is to store e-books in Canada for intellectual property reasons, so caching at edge locations may violate the requirement (depending on whether it is acceptable to store a cached version outside Canada). If the IP requirement allows it, and high download traffic is observed globally, CloudFront caching can be considered to improve performance.
 
 ## Sizing and Cost Assumptions
 
@@ -263,16 +266,16 @@ The application produces audit logs for sensitive business actions like purchase
 
 ## Reliability Considerations
 
-The architecture's availability is improved through multi-availabiliy-zone deployment, health checks and replacement of unhealthy instances, and managed storage, backups, and monitoring services.
+The architecture's availability is improved through multi-Availabiliy-Zone deployment, health checks and replacement of unhealthy instances, and managed storage, backups, and monitoring services.
 
 ### Application availability
 
-The backend API runs as ECS Fargate containers with a minimum of 2 tasks, deployed in two AZs, and monitored via health checks by the ALB. The ALB spreads out traffic evenly across healthy tasks, in order not to overwhelm any one task. If a task becomes unhealthy, the ALB stops sending traffic to it, and ECS autoscaling replaces it to maintain the desired number of tasks running. Metrics like CPU utilization, memory usage or ALB request count can be monitored and trigger the ECS autosscaling to add or remove tasks from the pool, within the confiuration limits.
+The backend API runs as ECS Fargate containers with a minimum of 2 tasks, deployed in two AZs, and monitored via health checks by the ALB. The ALB spreads out traffic evenly across healthy tasks, in order not to overwhelm any one task. If a task becomes unhealthy, the ALB stops sending traffic to it, and ECS service scheduler replaces it to maintain the desired number of tasks running. Metrics like CPU utilization, memory usage or ALB request count can be monitored and trigger the ECS service autoscaling to increase or decrease the desired number of tasks in the pool, within the configuration limits.
 
 ### Static assets and files availability
 
 Static assets are stored in S3 and served through CloudFront, both managed AWS services designed for high availability. This reduces the load on the backend when content is served from cache or S3.
-Protected e-books files are stored in S3 in the Canada region. Serving these files rely on backend authorization and S3 short-lived URLs, so e-books availability depends on both these services.  
+Protected e-books files are stored in S3 in the Canada ca-central-1 region. Serving these files rely on backend authorization and S3 short-lived URLs, so e-books availability depends on both these services.  
 
 ### Database availability and recovery
 
@@ -289,7 +292,7 @@ Design limits and potential failures are discussed in "Risks and Future Improvem
 
 ## Deployment Workflow
 
-### Infrastructure worklow
+### Infrastructure workflow
 
 Terraform manages long-lived infrastructure using code, and can create and update AWS resources such as VPC/networking elements, ECS service, ALB and listeners, RDS, S3 buckets, IAM roles, and CloudWatch alarms.
 Committing Terraform files to GitHub version control makes it easy to version and track changes.  
@@ -302,11 +305,11 @@ GitHub Actions manage application delivery: running tests, building the applicat
 During deployment, ECS starts new tasks with the update task definition and registers them with the ALB target group. The ALB health checks must pass before the old tasks are shut down.
 Merging code to the develop/main branches automatically runs unit tests and deploys to dev/staging environments.
 Each Docker image is tagged with the commit SHA it belongs to, which makes deployments traceable and enables rolling back ECS to a previous task definition that referenced a working Docker image.
-Production deployment require a manual approval step, identifying the Docker image that will be promoted using the commit SHA, and optionally adding a mutable "prod" tag that points to the latest prod version. The desired commit SHA is fed into the GitHub Action workflow that deploys to the production environment.
+Production deployments require a manual approval step, identifying the Docker image that will be promoted using the commit SHA, and optionally adding a mutable "prod" tag that points to the latest prod version. The desired commit SHA is fed into the GitHub Action workflow that deploys to the production environment.
 
-### Public keys and private secrets handling in CI/CD
+### Public configuration values and private secrets handling in CI/CD
 
-Public keys such as API keys needed by the frontend are automatically exposed in the browser, and inherently insecure. They are baked into the application bundle during the build process. If possible, they should be restricted to a short list of white-listed domain only.
+Public configuration values such as publishable third-party keys needed by the frontend are safe to expose in the browser. They are baked into the application bundle during the build process. If possible, they should be restricted to a short list of white-listed domain only.
 
 Private secrets are not hardcoded into the code, but are retrieved at runtime by ECS tasks from Secrets Manager using IAM task roles.
 
