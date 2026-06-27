@@ -1,0 +1,6 @@
+@JustReadItApi_HostAddress = http://localhost:5222
+
+GET {{JustReadItApi_HostAddress}}/weather/forecast
+Accept: application/json
+
+###
