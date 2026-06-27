@@ -320,36 +320,13 @@ Some measure of risk still exist, and listed below. With each one, there is a de
 
 | Risk | Possible Improvement | Why not included initially |
 |---|---:|---:|
-| ECS tasks are unable to handle traffic spikes, due to memory or CPU constraints | Scale vertically by increasing Fargate task CPU/memory or scale horizontally by adding more tasks in parallel | Initial traffic is moderate, so the service starts with modest task sizes and autoscaling rules. |
-
-
-Risk: ECS tasks are unable to handle traffic spikes, due to memory or CPU constraints
-Possible improvement: Scale vertically by increasing Fargate task CPU/memory or scale horizontally by adding more tasks in parallel
-Why not included initially: Initial traffic is moderate, so the service starts with modest task sizes and autoscaling rules.
-
-Risk: Database connections become a bottleneck
-Possible improvement: Tune application connection pools or add RDS Proxy between DB and backend
-Why not included initially: Adds another managed component and cost, it is not needed until connection pressure is observed
-
-Risk: Database read queries become slow
-Possible improvement: Add read replicas, improve indexes, or add a caching layer with ElastiCache for Redis. CloudFront can be considered for caching public content.
-Why not included initially: Using a single primary database keeps data consistency simple to manage. Data freshness is more difficult to manage with a separate reader endpoint, or with a Multi-AZ DB cluster deployment (1 writer / 2 readers in separate AZs)
-
-Risk: User-uploaded files create security risk or require moderation rules
-Possible improvement: Add malware scanning and moderation checking workflows
-Why not included initially: Basic file validation is included first, which can then grow into a more in-depth scan which would add cost and complexity
-
-Risk: File processing routines are slow or divert resources from user requests (if malware scanning / moderation improvements are implemented)
-Possible improvement: Move long-running jobs to separate workers, decoupled from the main backend via a AWS SQS queue
-Why not included initially: Cost and complexity of asynchronous workers not justified at first
-
-Risk: Malicious or bot requests activity is increasing
-Possible improvement: Add AWS WAF rule and rate limiting
-Why not included initially: Real traffic should be observed before setting up WAF, in order to avoid unnecessary cost and false positive
-
-Risk: Stronger disaster recovery strategy is required
-Possible improvement: Add cross-region backups, handbook cross-region restore procedures, or multi-region deployments
-Why not included initially: Full multi-region active-active deployments are costly and complex, and not justified at project launch
+| ECS tasks are unable to handle traffic spikes, due to memory or CPU constraints | Scale vertically by increasing Fargate task CPU/memory or scale horizontally by adding more tasks in parallel | Initial traffic is moderate, so the service starts with modest task sizes and autoscaling rules |
+| Database connections become a bottleneck | Tune application connection pools or add RDS Proxy between DB and backend | Adds another managed component and cost, it is not needed until connection pressure is observed |
+| Database read queries become slow | Add read replicas, improve indexes, or add a caching layer with ElastiCache for Redis. CloudFront can be considered for caching public content | Using a single primary database keeps data consistency simple to manage. Data freshness is more difficult to manage with a separate reader endpoint, or with a Multi-AZ DB cluster deployment (1 writer / 2 readers in separate AZs) |
+| User-uploaded files create security risk or require moderation rules | Add malware scanning and moderation checking workflows | Basic file validation is included first, which can then grow into a more in-depth scan which would add cost and complexity |
+| File processing routines are slow or divert resources from user requests (if malware scanning / moderation improvements are implemented) | Move long-running jobs to separate workers, decoupled from the main backend via a AWS SQS queue | Cost and complexity of asynchronous workers not justified at first |
+| Malicious or bot requests activity is increasing | Add AWS WAF rule and rate limiting | Real traffic should be observed before setting up WAF, in order to avoid unnecessary cost and false positive |
+| Stronger disaster recovery strategy is required | Add cross-region backups, handbook cross-region restore procedures, or multi-region deployments | Full multi-region active-active deployments are costly and complex, and not justified at project launch |
 
 Near-term improvements are likely to focus on performance tuning and user-uploaded content validation.
 Medium to long-term improvements are likely to focus on adding Redis caching, asynchronous workers or RDS Proxy, and eventually considering a multi-region deployment. 
