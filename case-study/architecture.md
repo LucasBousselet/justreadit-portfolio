@@ -318,6 +318,11 @@ Private secrets are not hardcoded into the code, but are retrieved at runtime by
 The initial architecture is designed to balance cost and reliability/performance, providing a reasonable starting point. 
 Some measure of risk still exist, and listed below. With each one, there is a description of the risk, a possible improvement to mitigate it, and the reason why it was not included in the initial plan.
 
+| Risk | Possible Improvement | Why not included initially |
+|---|---:|---:|
+| ECS tasks are unable to handle traffic spikes, due to memory or CPU constraints | Scale vertically by increasing Fargate task CPU/memory or scale horizontally by adding more tasks in parallel | Initial traffic is moderate, so the service starts with modest task sizes and autoscaling rules. |
+
+
 Risk: ECS tasks are unable to handle traffic spikes, due to memory or CPU constraints
 Possible improvement: Scale vertically by increasing Fargate task CPU/memory or scale horizontally by adding more tasks in parallel
 Why not included initially: Initial traffic is moderate, so the service starts with modest task sizes and autoscaling rules.
