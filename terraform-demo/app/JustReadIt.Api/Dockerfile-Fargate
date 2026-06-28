@@ -1,0 +1,34 @@
+# syntax=docker/dockerfile:1
+
+# This Dockerfile uses multi-stage build (https://docs.docker.com/build/building/multi-stage/)
+# It is a Dockerfile with multiple "FROM" statements, where each can have a different base image, and each 
+# beings a new stage in the build process.
+# You can selectively copy artifacts from one stage to another, leaving behind everything you don't want in the final stage
+
+# First stage named "build": Building the app
+# Create a stage for building the application.
+FROM --platform=$BUILDPLATFORM mcr.microsoft.com/dotnet/sdk:10.0-alpine AS build
+WORKDIR /source
+
+ARG TARGETARCH
+
+COPY JustReadIt.Api.csproj .
+RUN --mount=type=cache,id=nuget,target=/root/.nuget/packages \
+    dotnet restore JustReadIt.Api.csproj -a ${TARGETARCH/amd64/x64}
+
+COPY . .
+RUN --mount=type=cache,id=nuget,target=/root/.nuget/packages \
+    dotnet publish JustReadIt.Api.csproj -c Release -a ${TARGETARCH/amd64/x64} --no-restore --self-contained false -o /app
+
+FROM mcr.microsoft.com/dotnet/aspnet:10.0-alpine AS final
+WORKDIR /app
+
+ENV ASPNETCORE_URLS=http://+:7070
+EXPOSE 7070
+
+# Copy the published app from the "build" stage
+COPY --from=build /app .
+
+USER $APP_UID
+
+ENTRYPOINT ["dotnet", "JustReadIt.Api.dll"]
