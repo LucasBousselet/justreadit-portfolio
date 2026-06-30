@@ -2,6 +2,7 @@
 
 # Terraform workflow
 
+/!\ ECR and app workflow are separated in different files initially, so we need to speficy the file name in the command `terraform apply infra/ecr`
 - add resources to Terraform file
 - run `terraform fmt`
 - run `terraform plan` to review changes
