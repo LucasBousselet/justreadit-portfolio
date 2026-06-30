@@ -1,5 +1,13 @@
 ### Terraform Learning Notes
 
+# Terraform workflow
+
+- add resources to Terraform file
+- run `terraform fmt`
+- run `terraform plan` to review changes
+- run `terraform apply` to execute the plan and modify cloud resources
+- run `terraform destroy` at the end of the session to tear down the architecture, and keep costs low
+
 # Providers
 
 Plugins enabling Terraform to interact with cloud providers such as AWS, where each provider defines what resources Terraform can manage.
@@ -27,7 +35,7 @@ Printout information once the infrastructure has been built, useful for debuggin
 
 ## terraform init
 
-Initial command to set up Terraform in a repo, it downloads the provider set in the file, here AWS.
+Initial command to set up Terraform in a repo, it downloads the provider configured in the file, here AWS.
 
 ## terraform plan
 
