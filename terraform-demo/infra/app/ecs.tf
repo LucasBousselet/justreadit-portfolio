@@ -10,10 +10,11 @@ resource "aws_ecs_cluster" "justreadit_cluster" {
 }
 
 resource "aws_ecs_task_definition" "justreadit_task_definition" {
-  family                   = "service"requires_compatibilities = ["FARGATE"]
+  family                   = "service"
+  requires_compatibilities = ["FARGATE"]
   network_mode             = "awsvpc" # Required with Fargate, each task gets its own ENI/IP
-  cpu                      = 256 # 0.25 vCPU 
-  memory                   = 512 # 512 MiB
+  cpu                      = 256      # 0.25 vCPU 
+  memory                   = 512      # 512 MiB
   execution_role_arn       = aws_iam_role.ecs_execution_role.arn
   container_definitions = jsonencode([
     {
@@ -29,8 +30,8 @@ resource "aws_ecs_task_definition" "justreadit_task_definition" {
   ])
 
   runtime_platform {
-  operating_system_family = "LINUX"
-  cpu_architecture = "X86_64"
+    operating_system_family = "LINUX"
+    cpu_architecture        = "X86_64"
   }
 
   tags = local.tags
