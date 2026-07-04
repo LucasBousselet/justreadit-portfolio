@@ -34,9 +34,9 @@ resource "aws_ecs_task_definition" "justreadit_task_definition" {
         logDriver = "awslogs"
 
         options = {
-          awslogs-group        = aws_cloudwatch_log_group.justreadit_log_group.name
-          awslogs-region       = "ca-central-1"
-          aslogs-stream-prefix = "ecs"
+          awslogs-group         = aws_cloudwatch_log_group.justreadit_log_group.name
+          awslogs-region        = "ca-central-1"
+          awslogs-stream-prefix = "ecs"
         }
       }
     }
@@ -58,7 +58,10 @@ resource "aws_ecs_service" "ecs_service" {
   launch_type     = "FARGATE"
 
   network_configuration {
-    subnets          = [aws_subnet.public_subnet_1.id]
+    subnets = [
+      aws_subnet.public_subnet_1.id, # Need to be placed in private subnets when NAT Gateway and VPC endpoints are configured
+      aws_subnet.public_subnet_2.id
+    ]
     security_groups  = [aws_security_group.sg_ecs_task.id]
     assign_public_ip = true
   }
@@ -70,7 +73,8 @@ resource "aws_ecs_service" "ecs_service" {
   }
 
   depends_on = [
-    aws_iam_role_policy_attachment.ecs_execution_role_policy
+    aws_iam_role_policy_attachment.ecs_execution_role_policy,
+    aws_lb_listener.alb_listener_front_end
   ]
 
   tags = local.tags

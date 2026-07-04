@@ -21,4 +21,7 @@ The goal is to demonstrate a cost-conscious SaaS deployment using ECS Fargate, A
 - [ ] Milestone 4: Deploy RDS PostgreSQL, DB security group, Secrets Manager for DB credentials
 - [ ] Milestone 5: Add S3 buckets and CloudFront distribution
 - [ ] Milestone 6: Add CI/CD via GitHub Actions
-- [ ] Milestone 7: (optional) Add production environment / Route 53 hosted zone and DNS record
+- [ ] Milestone 7: Add NAT Gateway + VPC Endpoints
+- [ ] Milestone 8: (optional) Add:
+                        - production environment
+                        - Route 53 hosted zone and DNS record + public TLS certification

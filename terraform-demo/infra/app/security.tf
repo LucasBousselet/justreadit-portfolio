@@ -1,5 +1,5 @@
 resource "aws_security_group" "sg_alb_https" {
-  name        = "sg_alb_https"
+  name        = "${local.name}-sg-alb"
   description = "Allow HTTPS inbound traffic and all outbound traffic"
   vpc_id      = aws_vpc.justreadit_vpc.id
 
@@ -21,14 +21,14 @@ resource "aws_vpc_security_group_egress_rule" "allow_alb_all_outbound_ipv4" {
 }
 
 resource "aws_security_group" "sg_ecs_task" {
-  name        = "sg_ecs_task"
+  name        = "${local.name}-sg-ecs-task"
   description = "Allow 7070 inbound traffic and all outbound traffic"
   vpc_id      = aws_vpc.justreadit_vpc.id
 
   tags = local.tags
 }
 
-resource "aws_vpc_security_group_ingress_rule" "allow_ecs_https_ipv4" {
+resource "aws_vpc_security_group_ingress_rule" "allow_ecs_7070_from_alb" {
   security_group_id            = aws_security_group.sg_ecs_task.id
   from_port                    = 7070
   ip_protocol                  = "tcp"

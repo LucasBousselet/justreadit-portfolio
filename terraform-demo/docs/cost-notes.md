@@ -34,3 +34,28 @@ With only 1 ECS task having a network interface / IP
 
 With 1 task at 0.25 vCPU and 512 MiB of RAM
 15 2-hour learning sessions per month = 15 * 2 hours * ((0.25 * $0.04048) + (0.5 * $0.004445)) = about $0.37 per month
+
+# ALB
+
+| Cost Driver | Pricing |
+| :--- | :--- |
+| Base Charge | $0.0225 per hour |
+| LCU Charge | $0.008 per LCU-hour |
+
+The 4 Load Balancer Capacity Unit (LCUs):
+- 25 new connections per second
+- 3000 active connections
+- 1 GB of processed data per hour
+- 1000 rule evaluations per second
+Billing charges for the highest of the four LCU dimensions in a given hour.
+
+With no significant traffic, the only charge is the base charge.
+15 2-hour learning sessions per month = 15 * 2 hours * 0.0225 = about $0.675 per month
+
+# CloudWatch
+
+Demo app is well within the monthly free tier:
+- 10 custom metrics
+- 10 alarms
+- 1 million API requests
+- 5 GB of log ingestion
