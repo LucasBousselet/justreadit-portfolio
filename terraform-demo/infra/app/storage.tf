@@ -5,7 +5,9 @@ resource "aws_db_instance" "justreadit_postgres_db" {
   engine                      = "postgres"
   engine_version              = "16"
   instance_class              = "db.t4g.micro"
-  username                    = "admin"
+  storage_type                = "gp2"
+  identifier                  = "${local.name}-instance-demo"
+  username                    = "postgres_admin"
   manage_master_user_password = true # Automatically creates an entry in Secrets Manager
   skip_final_snapshot         = true # For demo app only
   db_subnet_group_name        = aws_db_subnet_group.postgres_subnet_group.name
@@ -24,7 +26,7 @@ resource "aws_db_subnet_group" "postgres_subnet_group" {
 
   subnet_ids = [
     aws_subnet.private_subnet_1.id,
-    aws_subnet.private_subnet_1.id
+    aws_subnet.private_subnet_2.id
   ]
 
   tags = local.tags

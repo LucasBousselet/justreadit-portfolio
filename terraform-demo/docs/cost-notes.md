@@ -59,3 +59,17 @@ Demo app is well within the monthly free tier:
 - 10 alarms
 - 1 million API requests
 - 5 GB of log ingestion
+
+# RDS Postgres
+
+| Cost Driver | Pricing |
+| :--- | :--- |
+| Compute (t4g.micro) | $0.018 per hour |
+| Storage (gp2) | $0.127 per GB/month |
+| Backups | Free < DB storage size 20 GB |
+| Data transfer inbound | Free |
+| Data transfer outbound | Free if < 100 GB |
+
+With no significant traffic, the only charge is the compute and storage.
+15 2-hour learning sessions per month = 15 * 2 hours * $0.018 per hour + 20 GB * 0.127 GB/month = about $2.6 per month
+
