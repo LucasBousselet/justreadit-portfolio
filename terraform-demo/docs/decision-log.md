@@ -22,3 +22,10 @@ https://github.com/LucasBousselet/aws-saas-case-study
     - 1 NAT Gateway for general internet access, for traffic initiated by the ECS tasks only.
     - 1 VPC Gateway endpoint for access to S3 from private subnets.
     - No VPC Interface endpoints are configured for the demo project, to keep cost low and complexity reasonable at first. These endpoints would have been created for each AWS resources that ECS private tasks needed access to (ECR, Secrets Manager, CloudWatch), and added to the private route table. They also generate hourly and data transfer costs
+
+# CloudFront / S3
+
+The S3 bucket storing website / cacheable assets has "public access" disabled. It has a bucket policy that only allows a specific CloudFront distribution to retrieve content.
+The CloudFront distribution is using OAC to securely access the S3 bucket.
+For the initial pass, the default caching behaviour in CloudFront for the website S3 origin, is to use the aws-managed "caching optimized" policy.
+Later on more granular custom policies can be added if needed, such as a shorted TTL on index.html, and longer one on versioned JS script.

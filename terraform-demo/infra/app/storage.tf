@@ -31,3 +31,88 @@ resource "aws_db_subnet_group" "postgres_subnet_group" {
 
   tags = local.tags
 }
+
+resource "random_id" "bucket_suffix" {
+  byte_length = 4
+}
+
+resource "aws_s3_bucket" "justreadit_website_assets_bucket" {
+  bucket = "${local.name}-app-website-assets-${random_id.bucket_suffix.hex}"
+  force_destroy = true # Destroys all objects upon bucket destruction
+
+  # No CORS policy needed as all the content is served through CloudFront as a single origin
+
+  tags = local.tags
+}
+
+resource "aws_s3_bucket_public_access_block" "justreadit_website_bucket_block_public" {
+  bucket = aws_s3_bucket.justreadit_website_assets_bucket.id
+
+  block_public_acls       = true
+  block_public_policy     = true
+  ignore_public_acls      = true
+  restrict_public_buckets = true
+}
+
+resource "aws_s3_bucket_policy" "website_bucket_policy" {
+  bucket = aws_s3_bucket.justreadit_website_assets_bucket.bucket
+  policy = data.aws_iam_policy_document.origin_policy_website_bucket.json
+}
+
+resource "aws_cloudfront_origin_access_control" "justreadit_cloudfront_oac" {
+  name                              = "${local.name}-oac"
+  description  = "Allows CloudFront to retrieve content from configured private S3 buckets"
+  origin_access_control_origin_type = "s3"
+  signing_behavior                  = "always"
+  signing_protocol                  = "sigv4"
+}
+
+resource "aws_cloudfront_distribution" "website_assets_s3_distribution" {
+  origin {
+    domain_name              = aws_s3_bucket.justreadit_website_assets_bucket.bucket_regional_domain_name
+    origin_access_control_id = aws_cloudfront_origin_access_control.justreadit_cloudfront_oac.id
+    origin_id                = "website-s3-origin"
+  }
+
+  enabled             = true
+  is_ipv6_enabled     = false
+  default_root_object = "index.html"
+  price_class = "PriceClass_100"
+
+  # Default caching behaviour is using the AWS-managed "CachingOptimized" policy
+  default_cache_behavior {
+    target_origin_id       = "website-s3-origin"
+    viewer_protocol_policy = "redirect-to-https"
+
+    allowed_methods        = ["GET", "HEAD"]
+    cached_methods         = ["GET", "HEAD"]
+
+    cache_policy_id = data.aws_cloudfront_cache_policy.caching_optimized.id
+    compress = true
+  }
+
+  # Using CloudFront default TLS certificate to redirect to HTTPS
+  viewer_certificate {
+    cloudfront_default_certificate = true
+  }
+
+  restrictions {
+    geo_restriction {
+      restriction_type = "none"
+      locations        = []
+    }
+  }
+
+  tags = local.tags
+}
+
+resource "aws_s3_bucket" "justreadit_user_content_bucket" {
+  bucket = "${local.name}-app-user-content-${random_id.bucket_suffix.hex}"
+  force_destroy = true # Destroys all objects upon bucket destruction
+
+  tags = local.tags
+}
+
+# aws_s3_bucket_cors_configuration 
+
+# aws_s3_bucket_server_side_encryption_configuration
