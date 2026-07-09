@@ -29,3 +29,7 @@ The S3 bucket storing website / cacheable assets has "public access" disabled. I
 The CloudFront distribution is using OAC to securely access the S3 bucket.
 For the initial pass, the default caching behaviour in CloudFront for the website S3 origin, is to use the aws-managed "caching optimized" policy.
 Later on more granular custom policies can be added if needed, such as a shorted TTL on index.html, and longer one on versioned JS script.
+No CORS policy needed on either CloudFront distributions because:
+- website assets are only served through CloudFront, which is a single origin and does not require CORS
+- user-content such as banners and book covers are cross-origin (different CloudFront distribution / origin than the website) but are only displayed in the HTML file, so no CORS required either
+- user-content private e-books are accessed through S3 presigned URLs and downloaded directly, so no need for CORS.
