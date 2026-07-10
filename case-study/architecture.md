@@ -70,12 +70,12 @@ CDN service that caches static assets in servers spread out across the world, cl
 CloudFront serves the frontend application and cacheable public assets like fonts and images. Protected content such as e-book files is not publicly cacheable by default, and are only accessed after backend authorization.
 CloudFront terminates the public TLS connection and forwards API requests to the ALB over a separate TLS connection.
 At every request, it evaluates if a fresh cached version exists and sends it back immediately if so. If not, it will get a fresh copy and cache it for the next user.
-Being close to end users means latency is low, and highly popular content is served rapidly without requiring an additional call to backend services.
+Being close to end users means latency is low, and highly popular cached content is served rapidly without requiring an additional call to backend services.
 
 ### S3 
 The app uses 2 S3 buckets for storage:
 - one for static assets, like the frontend HTML file, Javascript bundles, CSS, images, fonts. This can be widely cached. Public/static content is served through CloudFront, which has access to the bucket as origin;
-- one for user-uploaded content, like e-books, cover images or profile pictures. Public objects (cover images, profilte pictures) are cacheable and may be served through CloudFront, while protected e-books are accessed via presigned URLs generated in the backend. This separation makes it possible to enforce stricter rules, like access control, content moderation, and malware scanning. It it also making sure private user content (e-books especially) is hosted in Canada, which is a legal requirement.
+- one for user-uploaded content, like e-books, cover images or profile pictures. Public objects (cover images, profilte pictures) are cacheable and are served through CloudFront, while protected e-books are accessed via presigned URLs generated in the backend, not via CloudFront. This separation makes it possible to enforce stricter rules, like access control, content moderation, and malware scanning. It it also making sure private user content (e-books especially) is hosted in Canada, which is a legal requirement.
 It is durable and scales automatically.
 Public access to the buckets is blocked, so direct access by end users is impossible. 
  
