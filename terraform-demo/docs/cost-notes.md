@@ -71,5 +71,33 @@ Demo app is well within the monthly free tier:
 | Data transfer outbound | Free if < 100 GB |
 
 With no significant traffic, the only charge is the compute and storage.
-15 2-hour learning sessions per month = 15 * 2 hours * $0.018 per hour + 20 GB * 0.127 GB/month = about $2.6 per month
+15 2-hour learning sessions per month = 15 * 2 hours * $0.018 per hour + (30 hours / 730 hours) * 20 GB * 0.127 GB/month = about $0.64 per month
+
+# S3 Standard
+
+| Cost Driver | Pricing |
+| :--- | :--- |
+| Storage | $0.023 per GB/month < 50 TB |
+| Data transfer inbound | Free |
+| Data transfer outbound | $0.09 per GB/month < 10 TB |
+| Request fees (GET) | $0.0004 per 1,000 requests |
+| Request fees (POST/PUT/LIST) | $0.005 per 1,000 requests |
+
+Request fees are negligeable for a demo. Cost of storing 1 GB per session is:
+15 2-hour learning sessions per month = (30 hours / 730 hours) * 1 GB * 0.023 GB/month = about $0.001 per month
+
+# CloudFront
+
+| Cost Driver | Pricing |
+| :--- | :--- |
+| Data transfer outbound | $0.085 per GB < 10 TB |
+| Data transfer inbound | Free |
+| Data transfer from AWS service S3/ALB | Free |
+| Request fees (HTTP) | $0.0075 per 10,000 requests |
+| Request fees (HTTPS) | $0.01 per 10,000 requests |
+| Default CloudFront TLS certificate | Free |
+
+Request fees are negligeable for a demo. 
+If we are serving 500 MB per session: about 7.5 GB served
+7.5 GB * $0.085 per GB = about $0.6375 per month
 

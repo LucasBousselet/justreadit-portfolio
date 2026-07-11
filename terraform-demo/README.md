@@ -19,7 +19,7 @@ The goal is to demonstrate a cost-conscious SaaS deployment using ECS Fargate, A
 - [x] Milestone 2: Deploy simplified API container to ECS Fargate, with basic ECS task definition, ECS service, and IAM execution role 
 - [x] Milestone 3: Deploy VPC and ALB, security groups, target group, health check, and CloudWatch log group
 - [x] Milestone 4: Deploy RDS PostgreSQL, DB security group, Secrets Manager for DB credentials
-- [ ] Milestone 5: Add S3 buckets and CloudFront distribution
+- [x] Milestone 5: Add S3 buckets and CloudFront distribution
 - [ ] Milestone 6: Add CI/CD via GitHub Actions
 - [ ] Milestone 7: Add NAT Gateway + VPC Endpoints
 - [ ] Milestone 8: (optional) Add:
