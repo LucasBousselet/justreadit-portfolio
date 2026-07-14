@@ -1,4 +1,4 @@
-name: Deploy to ECR
+name: Deploy JustReadIt Demo App
 
 on:
   #push:
@@ -14,6 +14,9 @@ on:
 # - S3_BUCKET: S3 bucket where the frontend assets live.
 # - CLOUDFRONT_DISTRIBUTION_WEBSITE: CloudFront distribution fronting website assets.
 # - API_BASE_URL: Base URL where the ECS backend lives (ex: https://your-api.example.com).
+# - TASK_DEFINITION_FAMILY: ECS task def.
+# - ECS_SERVICE + ECS_CLUSTER: set in Terraform.
+# - CONTAINER_NAME: Container name configured in the task def, as set in Terraform.
 #
 # This workflow intentionally uses GitHub OIDC federation (no long-lived AWS keys).
 # The role trust policy must allow token.actions.githubusercontent.com and match this
@@ -22,9 +25,13 @@ env:
   AWS_REGION: ${{ vars.AWS_REGION }}
   AWS_ROLE_TO_ASSUME: ${{ vars.AWS_ROLE_TO_ASSUME }}
   ECR_REPOSITORY: ${{ vars.ECR_REPOSITORY }}
-  S3_BUCKET: ${{ vars.S3_BUCKET }}
+  S3_BUCKET: "justreadit-app-website-assets"
   CLOUDFRONT_DISTRIBUTION_WEBSITE: ${{ vars.CLOUDFRONT_DISTRIBUTION_WEBSITE }}
   API_BASE_URL: ${{ vars.API_BASE_URL }}
+  TASK_DEFINITION_FAMILY: ${{ vars.TASK_DEFINITION_FAMILY }}
+  ECS_CLUSTER: ${{ vars.ECS_CLUSTER }}
+  ECS_SERVICE: ${{ vars.ECS_SERVICE }}
+  CONTAINER_NAME: "justreadit-api-container"
 
 jobs:
   deploy:
@@ -41,7 +48,7 @@ jobs:
       - name: Validate required variables
         run: |
           missing=0
-          for var in AWS_REGION AWS_ROLE_TO_ASSUME ECR_REPOSITORY S3_BUCKET CLOUDFRONT_DISTRIBUTION_WEBSITE API_BASE_URL; do
+          for var in AWS_REGION AWS_ROLE_TO_ASSUME ECR_REPOSITORY S3_BUCKET CLOUDFRONT_DISTRIBUTION_WEBSITE API_BASE_URL TASK_DEFINITION_FAMILY ECS_CLUSTER ECS_SERVICE CONTAINER_NAME; do
             if [ -z "${!var}" ]; then
               echo "Missing required repository variable: $var"
               missing=1
@@ -84,11 +91,39 @@ jobs:
 
           echo "container_image=$IMAGE_URI" >> "$GITHUB_OUTPUT"
 
+      - name: Download current task definition
+        # Creates a local json file with the latest task def, which we'll use as template
+        env: 
+          TASK_DEFINITION_FAMILY: ${{ env.TASK_DEFINITION_FAMILY }}
+        run: |
+          aws ecs describe-task-definition \
+          --task-definition "${TASK_DEFINITION_FAMILY}" \
+          --query taskDefinition \
+          > task-definition-current.json 
+
+      - name: Render ECS task definition
+        # Reads the file created at the previous step, and replaces the container name
+        id: render-task-def
+        uses: aws-actions/amazon-ecs-render-task-definition@v1
+        with:
+          task-definition: task-definition-current.json
+          container-name: ${{ env.CONTAINER_NAME }}
+          image: ${{ steps.build-image.outputs.container_image }}
+
+      - name: Deploy ECS task definition 
+        uses: aws-actions/amazon-ecs-deploy-task-definition@v2
+        with: 
+          task-definition: ${{ steps.render-task-def.outputs.task-definition }}
+          service: ${{ env.ECS_SERVICE }}
+          cluster: ${{ env.ECS_CLUSTER }}
+          wait-for-service-stability: true
+        
       - name: Set up Node.js
         uses: actions/setup-node@v4
         with: 
-          node-version: ${{ env.NODE_VERSION }}
+          node-version: 22
           cache: npm
+          cache-dependency-path: frontend/package-lock.json
         
       - name: Install dependencies
         working-directory: frontend
@@ -99,8 +134,8 @@ jobs:
         working-directory: frontend
         shell: bash
         env:
-          S3_BUCKET: ${{ env.S3_BUCKET }}
-        run: VITE_API_BASE_URL= npm run build
+          VITE_API_BASE_URL: ${{ env.API_BASE_URL }}
+        run: npm run build
 
       - name: Deploy to S3
         working-directory: frontend
@@ -111,7 +146,7 @@ jobs:
         run: |
           aws s3 sync ./dist s3://${S3_BUCKET} --delete
           aws cloudfront create-invalidation \
-            --distribution-id ${CLOUDFRONT_DISTRIBUTION_WEBSITE} \
+            --distribution-id "${CLOUDFRONT_DISTRIBUTION_WEBSITE}" \
             --paths "/*"
 
       
