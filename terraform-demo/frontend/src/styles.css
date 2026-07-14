@@ -1,0 +1,263 @@
+:root {
+  color-scheme: light;
+  font-family: Inter, ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+  background: #f7f3ea;
+  color: #1f2933;
+  line-height: 1.5;
+}
+
+* {
+  box-sizing: border-box;
+}
+
+body {
+  margin: 0;
+  min-width: 320px;
+  min-height: 100vh;
+}
+
+button {
+  font: inherit;
+}
+
+.page-shell {
+  width: min(1120px, calc(100% - 32px));
+  margin: 0 auto;
+  padding: 48px 0;
+}
+
+.hero {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) 380px;
+  gap: 40px;
+  align-items: center;
+  min-height: 70vh;
+}
+
+.hero-copy {
+  padding: 24px 0;
+}
+
+.eyebrow,
+.book-label {
+  margin: 0 0 12px;
+  color: #94613d;
+  font-size: 0.78rem;
+  font-weight: 800;
+  letter-spacing: 0.12em;
+  text-transform: uppercase;
+}
+
+h1 {
+  margin: 0;
+  max-width: 760px;
+  font-size: clamp(2.5rem, 7vw, 5.8rem);
+  line-height: 0.95;
+  letter-spacing: -0.07em;
+}
+
+.intro {
+  max-width: 620px;
+  margin: 28px 0 0;
+  color: #52616f;
+  font-size: 1.15rem;
+}
+
+.status-card {
+  display: inline-flex;
+  align-items: center;
+  gap: 10px;
+  margin-top: 28px;
+  padding: 10px 14px;
+  border: 1px solid rgba(148, 97, 61, 0.18);
+  border-radius: 999px;
+  background: rgba(255, 255, 255, 0.65);
+  color: #52616f;
+  font-size: 0.95rem;
+}
+
+.status-dot {
+  width: 10px;
+  height: 10px;
+  border-radius: 999px;
+  background: #4f8f68;
+  box-shadow: 0 0 0 4px rgba(79, 143, 104, 0.15);
+}
+
+.book-card {
+  overflow: hidden;
+  border: 1px solid rgba(31, 41, 51, 0.08);
+  border-radius: 28px;
+  background: rgba(255, 255, 255, 0.82);
+  box-shadow: 0 24px 80px rgba(31, 41, 51, 0.14);
+}
+
+.book-cover {
+  display: block;
+  width: 100%;
+  aspect-ratio: 4 / 5;
+  object-fit: cover;
+  background: #e8ddcb;
+}
+
+.book-content {
+  padding: 26px;
+}
+
+.book-content h2,
+.error-card h2,
+.architecture-note h2 {
+  margin: 0;
+  line-height: 1.05;
+  letter-spacing: -0.04em;
+}
+
+.book-content h2 {
+  font-size: 2rem;
+}
+
+.author {
+  margin: 8px 0 0;
+  color: #7a8793;
+}
+
+.description {
+  margin: 18px 0 0;
+  color: #52616f;
+}
+
+.metadata {
+  display: grid;
+  grid-template-columns: repeat(2, 1fr);
+  gap: 12px;
+  margin: 22px 0;
+}
+
+.metadata div {
+  padding: 12px;
+  border-radius: 16px;
+  background: #f7f3ea;
+}
+
+.metadata dt {
+  color: #7a8793;
+  font-size: 0.78rem;
+  font-weight: 700;
+  text-transform: uppercase;
+}
+
+.metadata dd {
+  margin: 2px 0 0;
+  font-size: 1.1rem;
+  font-weight: 800;
+}
+
+.download-button {
+  width: 100%;
+  border: 0;
+  border-radius: 16px;
+  padding: 14px 18px;
+  background: #1f2933;
+  color: white;
+  cursor: pointer;
+  font-weight: 800;
+}
+
+.download-button:disabled {
+  cursor: wait;
+  opacity: 0.7;
+}
+
+.inline-error {
+  margin: 12px 0 0;
+  color: #b42318;
+  font-size: 0.92rem;
+}
+
+.loading-card {
+  padding: 24px;
+}
+
+.cover-placeholder {
+  width: 100%;
+  aspect-ratio: 4 / 5;
+  border-radius: 22px;
+  background: linear-gradient(120deg, #eee4d5, #fff8ee, #eee4d5);
+}
+
+.skeleton {
+  height: 14px;
+  margin-top: 16px;
+  border-radius: 999px;
+  background: #eadfcd;
+}
+
+.skeleton.title {
+  height: 28px;
+  width: 72%;
+}
+
+.skeleton.line {
+  width: 100%;
+}
+
+.skeleton.short {
+  width: 58%;
+}
+
+.error-card {
+  padding: 28px;
+}
+
+.error-card p {
+  color: #b42318;
+}
+
+.architecture-note {
+  margin-top: 24px;
+  padding: 32px;
+  border-radius: 28px;
+  background: #1f2933;
+  color: white;
+}
+
+.architecture-note h2 {
+  font-size: 2rem;
+}
+
+.note-grid {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: 16px;
+  margin-top: 22px;
+}
+
+.note-card {
+  padding: 18px;
+  border: 1px solid rgba(255, 255, 255, 0.12);
+  border-radius: 20px;
+  background: rgba(255, 255, 255, 0.06);
+}
+
+.note-card h3 {
+  margin: 0;
+}
+
+.note-card p {
+  margin: 10px 0 0;
+  color: #d6dee6;
+}
+
+@media (max-width: 860px) {
+  .hero {
+    grid-template-columns: 1fr;
+  }
+
+  .book-card {
+    max-width: 440px;
+  }
+
+  .note-grid {
+    grid-template-columns: 1fr;
+  }
+}
