@@ -1,152 +1,133 @@
-name: Deploy JustReadIt Demo App
+  name: Deploy JustReadIt Demo App
 
-on:
-  #push:
-  #  branches:
-  #    - main
-  workflow_dispatch:
+  on:
+    #push:
+    #  branches:
+    #    - main
+    workflow_dispatch:
+      inputs:
+        container_image_uri:
+          description: "Full ECR image URI to deploy, for example 123456789012.dkr.ecr.ca-central-1.amazonaws.com/justreadit-api:<sha>"
 
-# Required repository variables:
-# - AWS_REGION: AWS region where ECR lives (example: us-east-1).
-# - AWS_ROLE_TO_ASSUME: full IAM role ARN to assume via OIDC
-#   (example: arn:aws:iam::<account-id>:role/admin-role).
-# - ECR_REPOSITORY: ECR repo name (example: justreadit-api).
-# - S3_BUCKET: S3 bucket where the frontend assets live.
-# - CLOUDFRONT_DISTRIBUTION_WEBSITE: CloudFront distribution fronting website assets.
-# - API_BASE_URL: Base URL where the ECS backend lives (ex: https://your-api.example.com).
-# - TASK_DEFINITION_FAMILY: ECS task def.
-# - ECS_SERVICE + ECS_CLUSTER: set in Terraform.
-# - CONTAINER_NAME: Container name configured in the task def, as set in Terraform.
-#
-# This workflow intentionally uses GitHub OIDC federation (no long-lived AWS keys).
-# The role trust policy must allow token.actions.githubusercontent.com and match this
-# repo/branch in the `sub` claim.
-env:
-  AWS_REGION: ${{ vars.AWS_REGION }}
-  AWS_ROLE_TO_ASSUME: ${{ vars.AWS_ROLE_TO_ASSUME }}
-  ECR_REPOSITORY: ${{ vars.ECR_REPOSITORY }}
-  S3_BUCKET: "justreadit-app-website-assets"
-  CLOUDFRONT_DISTRIBUTION_WEBSITE: ${{ vars.CLOUDFRONT_DISTRIBUTION_WEBSITE }}
-  API_BASE_URL: ${{ vars.API_BASE_URL }}
-  TASK_DEFINITION_FAMILY: ${{ vars.TASK_DEFINITION_FAMILY }}
-  ECS_CLUSTER: ${{ vars.ECS_CLUSTER }}
-  ECS_SERVICE: ${{ vars.ECS_SERVICE }}
-  CONTAINER_NAME: "justreadit-api-container"
+  # Required repository variables:
+  # - AWS_REGION: AWS region where ECR lives (example: us-east-1).
+  # - AWS_ROLE_TO_ASSUME: full IAM role ARN to assume via OIDC
+  #   (example: arn:aws:iam::<account-id>:role/admin-role).
+  # - S3_BUCKET: S3 bucket where the frontend assets live.
+  # - CLOUDFRONT_DISTRIBUTION_WEBSITE: CloudFront distribution fronting website assets.
+  # - API_BASE_URL: Base URL where the ECS backend lives (ex: https://your-api.example.com).
+  # - TASK_DEFINITION_FAMILY: ECS task def.
+  # - ECS_SERVICE + ECS_CLUSTER: set in Terraform.
+  # - CONTAINER_NAME: Container name configured in the task def, as set in Terraform.
+  # - CONTAINER_IMAGE_URI: Docker image to deploy
+  #
+  # This workflow intentionally uses GitHub OIDC federation (no long-lived AWS keys).
+  # The role trust policy must allow token.actions.githubusercontent.com and match this
+  # repo/branch in the `sub` claim.
+  env:
+    AWS_REGION: ${{ vars.AWS_REGION }}
+    AWS_ROLE_TO_ASSUME: ${{ vars.AWS_ROLE_TO_ASSUME }}
+    S3_BUCKET: "justreadit-app-website-assets"
+    CLOUDFRONT_DISTRIBUTION_WEBSITE: ${{ vars.CLOUDFRONT_DISTRIBUTION_WEBSITE }}
+    API_BASE_URL: ${{ vars.API_BASE_URL }}
+    TASK_DEFINITION_FAMILY: ${{ vars.TASK_DEFINITION_FAMILY }}
+    ECS_CLUSTER: ${{ vars.ECS_CLUSTER }}
+    ECS_SERVICE: ${{ vars.ECS_SERVICE }}
+    CONTAINER_NAME: "justreadit-api-container"
+    CONTAINER_IMAGE_URI: ${{ inputs.container_image_uri }}
 
-jobs:
-  deploy:
-    runs-on: ubuntu-latest
-    permissions:
-      contents: read
-      # Needed so GitHub can mint an OIDC token for this job.
-      id-token: write
+  jobs:
+    deploy:
+      runs-on: ubuntu-latest
+      permissions:
+        contents: read
+        # Needed so GitHub can mint an OIDC token for this job.
+        id-token: write
 
-    steps:
-      - name: Checkout
-        uses: actions/checkout@v4
+      steps:
+        - name: Checkout
+          uses: actions/checkout@v4
 
-      - name: Validate required variables
-        run: |
-          missing=0
-          for var in AWS_REGION AWS_ROLE_TO_ASSUME ECR_REPOSITORY S3_BUCKET CLOUDFRONT_DISTRIBUTION_WEBSITE API_BASE_URL TASK_DEFINITION_FAMILY ECS_CLUSTER ECS_SERVICE CONTAINER_NAME; do
-            if [ -z "${!var}" ]; then
-              echo "Missing required repository variable: $var"
-              missing=1
+        - name: Validate required variables
+          run: |
+            missing=0
+            for var in AWS_REGION AWS_ROLE_TO_ASSUME S3_BUCKET CLOUDFRONT_DISTRIBUTION_WEBSITE API_BASE_URL TASK_DEFINITION_FAMILY ECS_CLUSTER ECS_SERVICE CONTAINER_NAME CONTAINER_IMAGE_URI; do
+              if [ -z "${!var}" ]; then
+                echo "Missing required repository variable: $var"
+                missing=1
+              fi
+            done
+            if [ "$missing" -ne 0 ]; then
+              exit 1
             fi
-          done
-          if [ "$missing" -ne 0 ]; then
-            exit 1
-          fi
 
-      - name: Configure AWS credentials
-        uses: aws-actions/configure-aws-credentials@v4
-        with:
-          # OIDC flow:
-          # 1) GitHub issues a short-lived JWT for this job.
-          # 2) AWS STS AssumeRoleWithWebIdentity validates JWT + trust policy.
-          # 3) STS returns temporary credentials used by later AWS CLI/ECR steps.
-          role-to-assume: ${{ env.AWS_ROLE_TO_ASSUME }}
-          role-session-name: github-actions-deploy
-          aws-region: ${{ env.AWS_REGION }}
+        - name: Configure AWS credentials
+          uses: aws-actions/configure-aws-credentials@v4
+          with:
+            # OIDC flow:
+            # 1) GitHub issues a short-lived JWT for this job.
+            # 2) AWS STS AssumeRoleWithWebIdentity validates JWT + trust policy.
+            # 3) STS returns temporary credentials used by later AWS CLI/ECR steps.
+            role-to-assume: ${{ env.AWS_ROLE_TO_ASSUME }}
+            role-session-name: github-actions-deploy
+            aws-region: ${{ env.AWS_REGION }}
 
-      - name: Login to Amazon ECR
-        id: login-ecr
-        uses: aws-actions/amazon-ecr-login@v2
+        - name: Download current task definition
+          # Creates a local json file with the latest task def, which we'll use as template
+          env: 
+            TASK_DEFINITION_FAMILY: ${{ env.TASK_DEFINITION_FAMILY }}
+          run: |
+            aws ecs describe-task-definition \
+            --task-definition "${TASK_DEFINITION_FAMILY}" \
+            --query taskDefinition \
+            > task-definition-current.json 
 
-      - name: Build, tag, and push image to ECR
-        id: build-image
-        env:
-          ECR_REGISTRY: ${{ steps.login-ecr.outputs.registry }}
-          # Image is tagged with the commit SHA for immutable traceability.
-          IMAGE_TAG: ${{ github.sha }}
-        working-directory: app/JustReadIt.Api
-        run: |
-          IMAGE_URI="$ECR_REGISTRY/$ECR_REPOSITORY:$IMAGE_TAG"
-          LATEST_URI="$ECR_REGISTRY/$ECR_REPOSITORY:latest"
+        - name: Render ECS task definition
+          # Reads the file created at the previous step, and replaces the container name
+          id: render-task-def
+          uses: aws-actions/amazon-ecs-render-task-definition@v1
+          with:
+            task-definition: task-definition-current.json
+            container-name: ${{ env.CONTAINER_NAME }}
+            image: ${{ env.container_image_uri }}
 
-          docker build -f Dockerfile-Fargate --target final -t "$IMAGE_URI" -t "$LATEST_URI" .
+        - name: Deploy ECS task definition 
+          uses: aws-actions/amazon-ecs-deploy-task-definition@v2
+          with: 
+            task-definition: ${{ steps.render-task-def.outputs.task-definition }}
+            service: ${{ env.ECS_SERVICE }}
+            cluster: ${{ env.ECS_CLUSTER }}
+            wait-for-service-stability: true
           
-          docker push "$IMAGE_URI"
-          docker push "$LATEST_URI"
+        - name: Set up Node.js
+          uses: actions/setup-node@v4
+          with: 
+            node-version: 22
+            cache: npm
+            cache-dependency-path: frontend/package-lock.json
+          
+        - name: Install dependencies
+          working-directory: frontend
+          shell: bash
+          run: npm ci --legacy-peer-deps
 
-          echo "container_image=$IMAGE_URI" >> "$GITHUB_OUTPUT"
+        - name: Build frontend
+          working-directory: frontend
+          shell: bash
+          env:
+            VITE_API_BASE_URL: ${{ env.API_BASE_URL }}
+          run: npm run build
 
-      - name: Download current task definition
-        # Creates a local json file with the latest task def, which we'll use as template
-        env: 
-          TASK_DEFINITION_FAMILY: ${{ env.TASK_DEFINITION_FAMILY }}
-        run: |
-          aws ecs describe-task-definition \
-          --task-definition "${TASK_DEFINITION_FAMILY}" \
-          --query taskDefinition \
-          > task-definition-current.json 
+        - name: Deploy to S3
+          working-directory: frontend
+          shell: bash
+          env:
+            S3_BUCKET: ${{ env.S3_BUCKET }}
+            CLOUDFRONT_DISTRIBUTION_WEBSITE: ${{ env.CLOUDFRONT_DISTRIBUTION_WEBSITE }}
+          run: |
+            aws s3 sync ./dist s3://${S3_BUCKET} --delete
+            aws cloudfront create-invalidation \
+              --distribution-id "${CLOUDFRONT_DISTRIBUTION_WEBSITE}" \
+              --paths "/*"
 
-      - name: Render ECS task definition
-        # Reads the file created at the previous step, and replaces the container name
-        id: render-task-def
-        uses: aws-actions/amazon-ecs-render-task-definition@v1
-        with:
-          task-definition: task-definition-current.json
-          container-name: ${{ env.CONTAINER_NAME }}
-          image: ${{ steps.build-image.outputs.container_image }}
-
-      - name: Deploy ECS task definition 
-        uses: aws-actions/amazon-ecs-deploy-task-definition@v2
-        with: 
-          task-definition: ${{ steps.render-task-def.outputs.task-definition }}
-          service: ${{ env.ECS_SERVICE }}
-          cluster: ${{ env.ECS_CLUSTER }}
-          wait-for-service-stability: true
         
-      - name: Set up Node.js
-        uses: actions/setup-node@v4
-        with: 
-          node-version: 22
-          cache: npm
-          cache-dependency-path: frontend/package-lock.json
-        
-      - name: Install dependencies
-        working-directory: frontend
-        shell: bash
-        run: npm ci --legacy-peer-deps
-
-      - name: Build frontend
-        working-directory: frontend
-        shell: bash
-        env:
-          VITE_API_BASE_URL: ${{ env.API_BASE_URL }}
-        run: npm run build
-
-      - name: Deploy to S3
-        working-directory: frontend
-        shell: bash
-        env:
-          S3_BUCKET: ${{ env.S3_BUCKET }}
-          CLOUDFRONT_DISTRIBUTION_WEBSITE: ${{ env.CLOUDFRONT_DISTRIBUTION_WEBSITE }}
-        run: |
-          aws s3 sync ./dist s3://${S3_BUCKET} --delete
-          aws cloudfront create-invalidation \
-            --distribution-id "${CLOUDFRONT_DISTRIBUTION_WEBSITE}" \
-            --paths "/*"
-
-      

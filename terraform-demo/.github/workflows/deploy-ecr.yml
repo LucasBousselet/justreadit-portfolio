@@ -35,7 +35,7 @@ jobs:
       - name: Validate required variables
         run: |
           missing=0
-          for var in AWS_REGION AWS_ROLE_TO_ASSUME ECR_REPOSITORY S3_BUCKET CLOUDFRONT_DISTRIBUTION_WEBSITE API_BASE_URL TASK_DEFINITION_FAMILY ECS_CLUSTER ECS_SERVICE CONTAINER_NAME; do
+          for var in AWS_REGION AWS_ROLE_TO_ASSUME ECR_REPOSITORY; do
             if [ -z "${!var}" ]; then
               echo "Missing required repository variable: $var"
               missing=1
@@ -75,3 +75,9 @@ jobs:
           
           docker push "$IMAGE_URI"
           docker push "$LATEST_URI"
+
+          echo "container_image=$IMAGE_URI" >> "$GITHUB_OUTPUT"
+
+          echo "### Docker image pushed" >> "$GITHUB_STEP_SUMMARY"
+          echo "" >> "$GITHUB_STEP_SUMMARY"
+          echo "\`$IMAGE_URI\`" >> "$GITHUB_STEP_SUMMARY"
