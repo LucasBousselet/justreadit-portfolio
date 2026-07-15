@@ -37,7 +37,7 @@ resource "random_id" "bucket_suffix" {
 }
 
 resource "aws_s3_bucket" "justreadit_website_assets_bucket" {
-  bucket        = "${local.name}-app-website-assets-${random_id.bucket_suffix.hex}"
+  bucket        = "${local.name}-app-website-assets"
   force_destroy = true # Destroys all objects upon bucket destruction
 
   # No CORS policy needed as all the content is served through CloudFront as a single origin
