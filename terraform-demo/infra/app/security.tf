@@ -8,7 +8,10 @@ resource "aws_security_group" "sg_alb_https" {
 
 resource "aws_vpc_security_group_ingress_rule" "allow_alb_https_ipv4" {
   security_group_id = aws_security_group.sg_alb_https.id
-  cidr_ipv4         = "0.0.0.0/0"
+  # Only accepts traffic from CloudFront prefix list.
+  # Any CloudFront distribution will match, an improvement for a more secure setup is to use a custom origin header.
+  prefix_list_id = data.aws_ec2_managed_prefix_list.cloudfront_origin_facing.id 
+  
   from_port         = 80 # 443 once HTTPS is configured
   ip_protocol       = "tcp"
   to_port           = 80 # 443 once HTTPS is configured

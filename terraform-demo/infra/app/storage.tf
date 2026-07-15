@@ -67,11 +67,32 @@ resource "aws_cloudfront_origin_access_control" "justreadit_cloudfront_oac" {
   signing_protocol                  = "sigv4"
 }
 
+resource "aws_cloudfront_origin_access_control" "justreadit_cloudfront_oac" {
+  name                              = "${local.name}-oac"
+  description                       = "Allows CloudFront to retrieve content from configured private S3 buckets"
+  origin_access_control_origin_type = "s3"
+  signing_behavior                  = "always"
+  signing_protocol                  = "sigv4"
+}
+
 resource "aws_cloudfront_distribution" "website_assets_s3_distribution" {
+  # Website assets origin
   origin {
     domain_name              = aws_s3_bucket.justreadit_website_assets_bucket.bucket_regional_domain_name
     origin_access_control_id = aws_cloudfront_origin_access_control.justreadit_cloudfront_oac.id
     origin_id                = "website-s3-origin"
+  }
+
+  # API backend origin
+  origin {
+    domain_name = aws_lb.alb.dns_name
+    origin_id   = "api-alb-origin"
+    custom_origin_config {
+      http_port              = 80
+      https_port             = 443
+      origin_protocol_policy = "http-only" # To change to HTTPS once ALB is configured with TLS certificate
+      origin_ssl_protocols   = ["TLSv1.2"] # Meaningless until TLS certificate is up
+    }
   }
 
   enabled             = true
@@ -88,6 +109,19 @@ resource "aws_cloudfront_distribution" "website_assets_s3_distribution" {
     cached_methods  = ["GET", "HEAD"]
 
     cache_policy_id = data.aws_cloudfront_cache_policy.caching_optimized.id
+    compress        = true
+  }
+  
+  # Cache rank 0, highest precedence
+  ordered_cache_behavior {
+    target_origin_id       = "api-alb-origin"
+    viewer_protocol_policy = "redirect-to-https"
+    path_pattern           = "/api/*"
+
+    allowed_methods = ["GET", "HEAD", "OPTIONS", "PUT", "POST", "PATCH", "DELETE"]
+    cached_methods  = ["GET", "HEAD"]
+
+    cache_policy_id = data.aws_cloudfront_cache_policy.caching_disabled.id
     compress        = true
   }
 
