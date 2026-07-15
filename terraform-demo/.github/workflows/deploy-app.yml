@@ -89,7 +89,7 @@
           with:
             task-definition: task-definition-current.json
             container-name: ${{ env.CONTAINER_NAME }}
-            image: ${{ env.container_image_uri }}
+            image: ${{ env.CONTAINER_IMAGE_URI }}
 
         - name: Deploy ECS task definition 
           uses: aws-actions/amazon-ecs-deploy-task-definition@v2

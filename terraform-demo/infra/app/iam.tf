@@ -60,7 +60,7 @@ resource "aws_iam_role_policy" "ecs_task_read_access_s3" {
           "s3:GetObject"
         ]
         Resource = [
-          "${aws_s3_bucket.website_assets_s3_distribution.arn}/*"
+          "${aws_s3_bucket.justreadit_website_assets_bucket.arn}/*"
         ]
       }
     ]
