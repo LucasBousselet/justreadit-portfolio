@@ -67,14 +67,6 @@ resource "aws_cloudfront_origin_access_control" "justreadit_cloudfront_oac" {
   signing_protocol                  = "sigv4"
 }
 
-resource "aws_cloudfront_origin_access_control" "justreadit_cloudfront_oac" {
-  name                              = "${local.name}-oac"
-  description                       = "Allows CloudFront to retrieve content from configured private S3 buckets"
-  origin_access_control_origin_type = "s3"
-  signing_behavior                  = "always"
-  signing_protocol                  = "sigv4"
-}
-
 resource "aws_cloudfront_distribution" "website_assets_s3_distribution" {
   # Website assets origin
   origin {
@@ -111,7 +103,7 @@ resource "aws_cloudfront_distribution" "website_assets_s3_distribution" {
     cache_policy_id = data.aws_cloudfront_cache_policy.caching_optimized.id
     compress        = true
   }
-  
+
   # Cache rank 0, highest precedence
   ordered_cache_behavior {
     target_origin_id       = "api-alb-origin"

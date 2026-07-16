@@ -25,6 +25,7 @@ namespace JustReadIt.Api
                 app.MapScalarApiReference();
             }
 
+            app.UsePathBase(new PathString("/api"));
             app.UseHttpsRedirection();
 
             app.MapControllers();
