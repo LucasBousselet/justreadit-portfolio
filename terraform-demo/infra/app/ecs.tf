@@ -32,6 +32,29 @@ resource "aws_ecs_task_definition" "justreadit_task_definition" {
         }
       ]
 
+      environment = [
+        {
+          name  = "AWS_REGION"
+          value = "ca-central-1"
+        },
+        {
+          name  = "Database__Host"
+          value = aws_db_instance.justreadit_postgres_db.address
+        },
+        {
+          name  = "Database__Port"
+          value = tostring(aws_db_instance.justreadit_postgres_db.port)
+        },
+        {
+          name  = "Database__Name"
+          value = aws_db_instance.justreadit_postgres_db.db_name
+        },
+        {
+          name  = "Database__SecretArn"
+          value = aws_db_instance.justreadit_postgres_db.master_user_secret[0].secret_arn
+        }
+      ]
+
       logConfiguration = {
         logDriver = "awslogs"
 

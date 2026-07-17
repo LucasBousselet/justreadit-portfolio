@@ -66,3 +66,24 @@ resource "aws_iam_role_policy" "ecs_task_read_access_s3" {
     ]
   })
 }
+
+resource "aws_iam_role_policy" "ecs_task_read_rds_secret" {
+  name = "${local.name}-ecs-task-read-rds-secret"
+  role = aws_iam_role.ecs_task_role.id
+
+  policy = jsonencode({
+    Version = "2012-10-17"
+    Statement = [
+      {
+        Sid    = "AllowReadRdsManagedSecret"
+        Effect = "Allow"
+        Action = [
+          "secretsmanager:GetSecretValue"
+        ]
+        Resource = [
+          aws_db_instance.justreadit_postgres_db.master_user_secret[0].secret_arn
+        ]
+      }
+    ]
+  })
+}

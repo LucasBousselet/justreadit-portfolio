@@ -3,7 +3,10 @@ const API_BASE_URL = import.meta.env.VITE_API_BASE_URL || '';
 const fallbackBook = {
   id: 'demo-book-001',
   title: 'The Terraform Reader',
-  author: 'JustReadIt Demo Library',
+  author: {
+    id: 1,
+    name: 'JustReadIt Demo Library',
+  },
   description:
     'A small demo book record. In the real app this would come from your ECS API backed by RDS/Postgres.',
   coverUrl: '/demo-cover.svg',

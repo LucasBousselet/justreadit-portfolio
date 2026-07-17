@@ -107,7 +107,7 @@ function BookCard({ book, error, isDownloading, onDownload }) {
       <div className="book-content">
         <p className="book-label">Featured demo book</p>
         <h2>{book.title}</h2>
-        <p className="author">by {book.author}</p>
+        <p className="author">by {getAuthorName(book)}</p>
         <p className="description">{book.description}</p>
         <dl className="metadata">
           <div>
@@ -126,6 +126,14 @@ function BookCard({ book, error, isDownloading, onDownload }) {
       </div>
     </aside>
   );
+}
+
+function getAuthorName(book) {
+  if (!book.author) {
+    return 'Unknown author';
+  }
+
+  return typeof book.author === 'string' ? book.author : book.author.name;
 }
 
 function Note({ title, body }) {
