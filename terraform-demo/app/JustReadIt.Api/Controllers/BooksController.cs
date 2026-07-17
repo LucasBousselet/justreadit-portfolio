@@ -1,4 +1,6 @@
 using Microsoft.AspNetCore.Mvc;
+using Microsoft.EntityFrameworkCore;
+using JustReadIt.Api.Data;
 using JustReadIt.Api.Models;
 
 namespace JustReadIt.Api.Controllers
@@ -7,19 +9,27 @@ namespace JustReadIt.Api.Controllers
     [ApiController]
     public class BooksController : ControllerBase
     {
-        [HttpGet("book")]
-        public async Task<BookModel> GetDemoBookAsync()
+        private readonly JustReadItDbContext _dbContext;
+
+        public BooksController(JustReadItDbContext dbContext)
         {
-            var demoBook = new BookModel
+            _dbContext = dbContext;
+        }
+
+        [HttpGet("book")]
+        public async Task<ActionResult<BookModel>> GetDemoBookAsync()
+        {
+            var demoBook = await _dbContext.Books
+                .AsNoTracking()
+                .Include(book => book.Author)
+                .OrderBy(book => book.Id)
+                .FirstOrDefaultAsync();
+
+            if (demoBook is null)
             {
-                Id = 1,
-                Title = "The Terraform Reader",
-                Author = "JustReadIt Demo Library",
-                Description = "A small demo book record. In the real app this would come from your ECS API backed by RDS/Postgres.",
-                CoverUrl = "/demo-cover.svg",
-                PublishedYear = 2026,
-                Pages = 128
-            };
+                return NotFound();
+            }
+
             return demoBook;
         }
     }
