@@ -148,6 +148,16 @@ resource "aws_s3_bucket_public_access_block" "justreadit_user_content_bucket_blo
   restrict_public_buckets = true
 }
 
+resource "aws_s3_object" "demo_ebook" {
+  bucket       = aws_s3_bucket.justreadit_user_content_bucket.id
+  key          = "ebooks/demo-book.txt"
+  source       = "${path.module}/assets/dummy-ebook.txt"
+  content_type = "text/plain"
+  etag         = filemd5("${path.module}/assets/dummy-ebook.txt")
+
+  tags = local.tags
+}
+
 resource "aws_s3_bucket_policy" "user_content_bucket_policy" {
   bucket = aws_s3_bucket.justreadit_user_content_bucket.bucket
   policy = data.aws_iam_policy_document.origin_policy_user_content_bucket.json

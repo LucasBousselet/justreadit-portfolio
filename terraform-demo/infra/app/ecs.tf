@@ -52,6 +52,16 @@ resource "aws_ecs_task_definition" "justreadit_task_definition" {
         {
           name  = "Database__SecretArn"
           value = aws_db_instance.justreadit_postgres_db.master_user_secret[0].secret_arn
+        },
+        {
+          name  = "Storage__UserContentBucketName"
+          value = aws_s3_bucket.justreadit_user_content_bucket.bucket
+        },
+        # ASP.NET maps double underscores to configuration sections, so this
+        # becomes Storage:DemoEbookKey inside StorageOptions.
+        {
+          name  = "Storage__DemoEbookKey"
+          value = aws_s3_object.demo_ebook.key
         }
       ]
 
