@@ -1,0 +1,16 @@
+@JustReadItApi_HostAddress = http://localhost:5222
+
+GET {{JustReadItApi_HostAddress}}/weather/forecast
+Accept: application/json
+
+###
+
+GET {{JustReadItApi_HostAddress}}/demo/book
+Accept: application/json
+
+###
+
+GET {{JustReadItApi_HostAddress}}/demo/books/1/download-url
+Accept: application/json
+
+###

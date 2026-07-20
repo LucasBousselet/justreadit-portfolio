@@ -1,0 +1,12 @@
+<svg width="800" height="1000" viewBox="0 0 800 1000" fill="none" xmlns="http://www.w3.org/2000/svg">
+  <rect width="800" height="1000" fill="#1F2933"/>
+  <rect x="64" y="64" width="672" height="872" rx="28" fill="#F7F3EA"/>
+  <rect x="112" y="112" width="576" height="776" rx="18" fill="#E8DDCB"/>
+  <circle cx="400" cy="324" r="118" fill="#94613D" opacity="0.95"/>
+  <path d="M300 323C340 267 459 267 500 323C459 379 340 379 300 323Z" fill="#F7F3EA"/>
+  <circle cx="400" cy="323" r="32" fill="#1F2933"/>
+  <text x="400" y="560" text-anchor="middle" font-family="Inter, Arial, sans-serif" font-size="72" font-weight="800" fill="#1F2933">JustReadIt</text>
+  <text x="400" y="630" text-anchor="middle" font-family="Inter, Arial, sans-serif" font-size="32" font-weight="600" fill="#52616F">Demo Edition</text>
+  <rect x="220" y="720" width="360" height="4" rx="2" fill="#94613D"/>
+  <text x="400" y="792" text-anchor="middle" font-family="Inter, Arial, sans-serif" font-size="28" font-weight="700" fill="#1F2933">THE TERRAFORM READER</text>
+</svg>
