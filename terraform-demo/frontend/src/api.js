@@ -31,7 +31,7 @@ export async function fetchFeaturedBook() {
 export async function getDummyEbookDownloadUrl(bookId) {
   if (!API_BASE_URL) {
     await delay(250);
-    return '/dummy-ebook.txt';
+    return 'download requires API';
   }
 
   const response = await fetch(`${API_BASE_URL}/demo/books/${bookId}/download-url`);

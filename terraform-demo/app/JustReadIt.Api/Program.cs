@@ -1,3 +1,5 @@
+using Amazon;
+using Amazon.S3;
 using Scalar.AspNetCore;
 using JustReadIt.Api.Data;
 using Microsoft.EntityFrameworkCore;
@@ -20,6 +22,12 @@ namespace JustReadIt.Api
             builder.Services.AddControllers();
             builder.Services.AddDbContext<JustReadItDbContext>(options =>
                 options.UseNpgsql(postgresConnectionString));
+            builder.Services.Configure<StorageOptions>(
+                builder.Configuration.GetSection(StorageOptions.SectionName));
+
+            // Used by the demo download endpoint to generate S3 pre-signed URLs.
+            // The AWS SDK resolves credentials from the ECS task role in AWS.
+            builder.Services.AddSingleton<IAmazonS3>(_ => CreateS3Client(builder.Configuration));
 
             var app = builder.Build();
 
@@ -55,6 +63,24 @@ namespace JustReadIt.Api
             await using var scope = app.Services.CreateAsyncScope();
             var dbContext = scope.ServiceProvider.GetRequiredService<JustReadItDbContext>();
             await dbContext.Database.MigrateAsync();
+        }
+
+        private static IAmazonS3 CreateS3Client(IConfiguration configuration)
+        {
+            // Terraform sets AWS_REGION on the ECS task; AWS_DEFAULT_REGION keeps
+            // the same code friendly for common local and CI environments.
+            var regionName = FirstNonEmpty(
+                configuration["AWS_REGION"],
+                configuration["AWS_DEFAULT_REGION"]);
+
+            return string.IsNullOrWhiteSpace(regionName)
+                ? new AmazonS3Client()
+                : new AmazonS3Client(RegionEndpoint.GetBySystemName(regionName));
+        }
+
+        private static string? FirstNonEmpty(params string?[] values)
+        {
+            return values.FirstOrDefault(value => !string.IsNullOrWhiteSpace(value));
         }
     }
 }

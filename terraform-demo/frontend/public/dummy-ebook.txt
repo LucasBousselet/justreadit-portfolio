@@ -1,8 +1,0 @@
-JustReadIt Dummy E-book
-=======================
-
-This is a placeholder file used by the demo frontend.
-
-In the real app, the download button would call your ECS API. The API would authenticate the user and return a short-lived S3 pre-signed URL for a private e-book object.
-
-For now, this file lives in /public so the frontend can demonstrate the download flow without a backend.

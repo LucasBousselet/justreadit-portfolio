@@ -37,6 +37,11 @@ function App() {
 
     try {
       const downloadUrl = await getDummyEbookDownloadUrl(book.id);
+
+      if (downloadUrl === 'download requires API') {
+        throw new Error(downloadUrl);
+      }
+
       window.location.assign(downloadUrl);
     } catch (err) {
       setError(err.message || 'Could not start the download.');
