@@ -14,5 +14,8 @@ namespace JustReadIt.Api.Data
 
         // Keep presigned URLs short-lived; callers can request a fresh URL when needed.
         public int PresignedUrlExpirationMinutes { get; set; } = 5;
+
+        // Name of the domain hosting public user-content.
+        public string? UserContentPublicBaseUrl { get; set; }
     }
 }

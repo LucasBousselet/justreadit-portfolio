@@ -62,6 +62,10 @@ resource "aws_ecs_task_definition" "justreadit_task_definition" {
         {
           name  = "Storage__DemoEbookKey"
           value = aws_s3_object.demo_ebook.key
+        }, 
+        {
+          name  = "Storage__UserContentPublicBaseUrl"
+          value = "https://${aws_cloudfront_distribution.user_content_s3_distribution.domain_name}
         }
       ]
 

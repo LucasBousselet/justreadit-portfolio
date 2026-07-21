@@ -27,12 +27,27 @@ namespace JustReadIt.Api.Controllers
         }
 
         [HttpGet("book")]
-        public async Task<ActionResult<BookModel>> GetDemoBookAsync()
+        public async Task<ActionResult<BookResponseModel>> GetDemoBookAsync()
         {
             var demoBook = await _dbContext.Books
                 .AsNoTracking()
                 .Include(book => book.Author)
                 .OrderBy(book => book.Id)
+                .Select(book => new BookResponseModel
+                {
+                    Id = book.Id,
+                    Title = book.Title,
+                    PublishedYear = book.PublishedYear,
+                    Pages = book.Pages,
+                    Description = book.Description,
+                    Author = new AuthorResponseModel
+                    {
+                        Id = book.Author.Id,
+                        Name = book.Author.Name,
+                        Bio = book.Author.Bio
+                    },
+                    CoverUrl = BuildPublicUserContentUrl(book.CoverUrl)
+                })
                 .FirstOrDefaultAsync();
 
             if (demoBook is null)
@@ -106,6 +121,26 @@ namespace JustReadIt.Api.Controllers
             return string.IsNullOrWhiteSpace(fileName)
                 ? "ebook.txt"
                 : $"{fileName}.txt";
+        }
+
+        private string? BuildPublicUserContentUrl(string? objectKey)
+        {
+            if (string.IsNullOrWhiteSpace(objectKey))
+            {
+                return null;
+            }
+
+            if (Uri.TryCreate(objectKey, UriKind.Absolute, out _))
+            {
+                return objectKey;
+            }
+
+            var userContentBaseUrl = _storageOptions.UserContentPublicBaseUrl?.TrimEnd('/');
+
+            var baseUrl = _storageOptions.UserContentPublicBaseUrl!.TrimEnd('/');
+            var normalizedKey = objectKey.TrimStart('/');
+
+            return $"{baseUrl}/{normalizedKey}";
         }
     }
 }

@@ -167,3 +167,15 @@ resource "aws_nat_gateway" "public_nat_gateway" {
 
   tags = local.tags
 }
+
+resource "aws_vpc_endpoint" "s3_vpc_endpoint" {
+  vpc_id       = aws_vpc.justreadit_vpc.id
+  service_name = "com.amazonaws.ca-central-1.s3"
+  vpc_endpoint_type = "Gateway" # Explicitly set
+
+  route_table_ids = [
+    aws_route_table.justreadit_private_route_table.id
+  ]
+
+  policy = aws_iam_role_policy.vpc_gateway_endpoint_access_user_content_s3.json
+}

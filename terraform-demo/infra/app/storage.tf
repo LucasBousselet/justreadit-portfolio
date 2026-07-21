@@ -158,6 +158,16 @@ resource "aws_s3_object" "demo_ebook" {
   tags = local.tags
 }
 
+resource "aws_s3_object" "ebook_cover" {
+  bucket       = aws_s3_bucket.justreadit_user_content_bucket.id
+  key          = "covers/demo-cover.svg"
+  source       = "${path.module}/assets/demo-cover.svg"
+  content_type = "image/svg+xml"
+  etag         = filemd5("${path.module}/assets/demo-cover.svg")
+
+  tags = local.tags
+}
+
 resource "aws_s3_bucket_policy" "user_content_bucket_policy" {
   bucket = aws_s3_bucket.justreadit_user_content_bucket.bucket
   policy = data.aws_iam_policy_document.origin_policy_user_content_bucket.json

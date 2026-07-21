@@ -9,7 +9,7 @@ const fallbackBook = {
   },
   description:
     'A small demo book record. In the real app this would come from your ECS API backed by RDS/Postgres.',
-  coverUrl: '/demo-cover.svg',
+  coverUrl: 'covers/demo-cover.svg',
   publishedYear: 2026,
   pages: 128,
 };

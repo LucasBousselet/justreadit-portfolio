@@ -71,7 +71,7 @@ namespace JustReadIt.Api.Data
                         Title = "The Terraform Reader",
                         AuthorId = 1,
                         Description = "A small demo book record loaded from PostgreSQL through Entity Framework Core.",
-                        CoverUrl = "/demo-cover.svg",
+                        CoverUrl = "covers/demo-cover.svg",
                         PublishedYear = 2026,
                         Pages = 128
                     },
@@ -81,7 +81,7 @@ namespace JustReadIt.Api.Data
                         Title = "Practical Cloud Notes",
                         AuthorId = 1,
                         Description = "Fake seed data that proves one author can have several books.",
-                        CoverUrl = "/demo-cover.svg",
+                        CoverUrl = "covers/demo-cover.svg",
                         PublishedYear = 2025,
                         Pages = 214
                     },
@@ -91,7 +91,7 @@ namespace JustReadIt.Api.Data
                         Title = "Postgres for Page Turners",
                         AuthorId = 2,
                         Description = "A fictional book used to verify the Author-to-Books relationship.",
-                        CoverUrl = "/demo-cover.svg",
+                        CoverUrl = "covers/demo-cover.svg",
                         PublishedYear = 2024,
                         Pages = 176
                     });

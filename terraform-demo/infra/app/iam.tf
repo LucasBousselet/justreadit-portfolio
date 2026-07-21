@@ -24,8 +24,8 @@ resource "aws_iam_role_policy_attachment" "ecs_execution_role_policy" {
   policy_arn = "arn:aws:iam::aws:policy/service-role/AmazonECSTaskExecutionRolePolicy"
 }
 
+# Role assumed by the application code running inside the container
 resource "aws_iam_role" "ecs_task_role" {
-  # Role assumed by the application code running inside the container
   name = "${local.name}-ecs-task-role"
 
   # Trust policy
@@ -82,6 +82,32 @@ resource "aws_iam_role_policy" "ecs_task_read_rds_secret" {
         ]
         Resource = [
           aws_db_instance.justreadit_postgres_db.master_user_secret[0].secret_arn
+        ]
+      }
+    ]
+  })
+}
+
+
+resource "aws_iam_role_policy" "vpc_gateway_endpoint_access_user_content_s3" {
+  name = "${local.name}-vpc-gateway-endpoint-write-user-content-s3"
+
+  policy = jsonencode({
+    Version = "2012-10-17"
+    Statement = [
+      {
+        Sid    = "AllowWriteOperationsToUserContentBucket"
+        Effect = "Allow"
+        Principal = "*"
+        Action = [
+          "s3:GetObject",
+          "s3:PutObject",
+          "s3:DeleteObject",
+          "s3:ListBucket"
+        ]
+        Resource = [
+          aws_s3_bucket.justreadit_user_content_bucket.arn,
+          "${aws_s3_bucket.justreadit_user_content_bucket.arn}/*"
         ]
       }
     ]
