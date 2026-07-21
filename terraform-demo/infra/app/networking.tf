@@ -14,7 +14,7 @@ resource "aws_internet_gateway" "vpc_igw" {
   })
 }
 
-resource "aws_route_table" "justreadit_route_table" {
+resource "aws_route_table" "justreadit_public_route_table" {
   vpc_id = aws_vpc.justreadit_vpc.id
 
   route {
@@ -23,7 +23,20 @@ resource "aws_route_table" "justreadit_route_table" {
   }
 
   tags = merge(local.tags, {
-    Name = "${local.name}-rt"
+    Name = "${local.name}-public-rt"
+  })
+}
+
+resource "aws_route_table" "justreadit_private_route_table" {
+  vpc_id = aws_vpc.justreadit_vpc.id
+
+  route {
+    cidr_block = "0.0.0.0/0"
+    nat_gateway_id = aws_nat_gateway.public_nat_gateway.id
+  }
+
+  tags = merge(local.tags, {
+    Name = "${local.name}-private-rt"
   })
 }
 
@@ -69,12 +82,22 @@ resource "aws_subnet" "private_subnet_2" {
 
 resource "aws_route_table_association" "public_subnet_1_rt_association" {
   subnet_id      = aws_subnet.public_subnet_1.id
-  route_table_id = aws_route_table.justreadit_route_table.id
+  route_table_id = aws_route_table.justreadit_public_route_table.id
 }
 
 resource "aws_route_table_association" "public_subnet_2_rt_association" {
   subnet_id      = aws_subnet.public_subnet_2.id
-  route_table_id = aws_route_table.justreadit_route_table.id
+  route_table_id = aws_route_table.justreadit_public_route_table.id
+}
+
+resource "aws_route_table_association" "private_subnet_1_rt_association" {
+  subnet_id      = aws_subnet.private_subnet_1.id
+  route_table_id = aws_route_table.justreadit_private_route_table.id
+}
+
+resource "aws_route_table_association" "private_subnet_2_rt_association" {
+  subnet_id      = aws_subnet.private_subnet_2.id
+  route_table_id = aws_route_table.justreadit_private_route_table.id
 }
 
 resource "aws_lb" "alb" {
@@ -127,4 +150,20 @@ resource "aws_lb_listener" "alb_listener_front_end" {
     type             = "forward" # Forwards HTTP traffic to target group, which is configured with the backend port 7070
     target_group_arn = aws_lb_target_group.alb_tg.arn
   }
+}
+
+# Creates an Elastic IP
+resource "aws_eip" "nat_eip" {
+  domain   = "vpc"
+}
+
+resource "aws_nat_gateway" "public_nat_gateway" {
+  allocation_id = aws_eip.nat_eip.id
+  subnet_id     = aws_subnet.public_subnet_1.id
+
+  # To ensure proper ordering, it is recommended to add an explicit dependency
+  # on the Internet Gateway for the VPC.
+  depends_on = [aws_internet_gateway.vpc_igw]
+
+  tags = local.tags
 }

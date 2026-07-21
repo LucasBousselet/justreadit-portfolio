@@ -94,8 +94,8 @@ resource "aws_ecs_service" "ecs_service" {
 
   network_configuration {
     subnets = [
-      aws_subnet.public_subnet_1.id, # Need to be placed in private subnets when NAT Gateway and VPC endpoints are configured
-      aws_subnet.public_subnet_2.id
+      aws_subnet.private_subnet_1.id, # Tasks live in private subnets, and require a NAT Gateway route for outbound access
+      aws_subnet.private_subnet_2.id
     ]
     security_groups  = [aws_security_group.sg_ecs_task.id]
     assign_public_ip = true

@@ -20,6 +20,8 @@ Basic API Docker image is ~100 MB
 | Security Group / Route Table | Free |
 | Public IPv4 Addresses | $0.005/hour per IPv4 |
 | Outbound (internet) Data transfer | $0.09/GB < 10TB |
+| Elastic IP | |
+| NAT Gateway | |
 
 With only 1 ECS task having a network interface / IP
 15 2-hour learning sessions per month = 15 * 2 hours * 1 public IPv4 * $0.005/hour = about $0.15 per month 
