@@ -50,11 +50,11 @@ jobs:
         with:
           script: |
             const token = await core.getIDToken('sts.amazonaws.com');
-            const payload = JSON.parse(
-              Buffer.from(token.split('.')[1], 'base64url').toString('utf8')
-            );
+            const tokenParts = token.split('.');
+            const payloadJson = Buffer.from(tokenParts[1], 'base64url').toString('utf8');
+            const payload = JSON.parse(payloadJson);
 
-            for (const key of [
+            const keys = [
               'iss',
               'aud',
               'sub',
@@ -64,8 +64,10 @@ jobs:
               'workflow_ref',
               'job_workflow_ref',
               'environment'
-            ]) {
-              core.info(${key}: ${payload[key] ?? ''});
+            ];
+
+            for (const key of keys) {
+              core.info(key + ': ' + (payload[key] || ''));
             }
 
       - name: Configure AWS credentials
