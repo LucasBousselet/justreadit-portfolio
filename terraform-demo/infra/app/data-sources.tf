@@ -42,15 +42,15 @@ data "aws_iam_policy_document" "vpc_gateway_endpoint_access_user_content_s3_poli
     }
 
     actions = [
-        "s3:GetObject",
-        "s3:PutObject",
-        "s3:DeleteObject",
-        "s3:ListBucket"
+      "s3:GetObject",
+      "s3:PutObject",
+      "s3:DeleteObject",
+      "s3:ListBucket"
     ]
 
     resources = [
-          aws_s3_bucket.justreadit_user_content_bucket.arn,
-          "${aws_s3_bucket.justreadit_user_content_bucket.arn}/*"
+      aws_s3_bucket.justreadit_user_content_bucket.arn,
+      "${aws_s3_bucket.justreadit_user_content_bucket.arn}/*"
     ]
   }
 
@@ -65,11 +65,11 @@ data "aws_iam_policy_document" "vpc_gateway_endpoint_access_user_content_s3_poli
     }
 
     actions = [
-        "s3:GetObject"
+      "s3:GetObject"
     ]
 
     resources = [
-          "arn:aws:s3:::prod-ca-central-1-starport-layer-bucket/*",
+      "arn:aws:s3:::prod-ca-central-1-starport-layer-bucket/*",
     ]
   }
 }

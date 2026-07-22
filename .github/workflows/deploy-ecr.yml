@@ -45,6 +45,29 @@ jobs:
             exit 1
           fi
 
+      - name: Debug OIDC claims
+        uses: actions/github-script@v7
+        with:
+          script: |
+            const token = await core.getIDToken('sts.amazonaws.com');
+            const payload = JSON.parse(
+              Buffer.from(token.split('.')[1], 'base64url').toString('utf8')
+            );
+
+            for (const key of [
+              'iss',
+              'aud',
+              'sub',
+              'repository',
+              'repository_owner',
+              'ref',
+              'workflow_ref',
+              'job_workflow_ref',
+              'environment'
+            ]) {
+              core.info(${key}: ${payload[key] ?? ''});
+            }
+
       - name: Configure AWS credentials
         uses: aws-actions/configure-aws-credentials@v4
         with:
