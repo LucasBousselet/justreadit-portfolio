@@ -33,20 +33,20 @@ namespace JustReadIt.Api.Controllers
                 .AsNoTracking()
                 .Include(book => book.Author)
                 .OrderBy(book => book.Id)
-                .Select(book => new BookResponseModel
+                .Select(book => new
                 {
-                    Id = book.Id,
-                    Title = book.Title,
-                    PublishedYear = book.PublishedYear,
-                    Pages = book.Pages,
-                    Description = book.Description,
+                    book.Id,
+                    book.Title,
+                    book.PublishedYear,
+                    book.Pages,
+                    book.Description,
                     Author = new AuthorResponseModel
                     {
                         Id = book.Author.Id,
                         Name = book.Author.Name,
                         Bio = book.Author.Bio
                     },
-                    CoverUrl = BuildPublicUserContentUrl(book.CoverUrl)
+                    CoverObjectKey = book.CoverUrl
                 })
                 .FirstOrDefaultAsync();
 
@@ -55,7 +55,22 @@ namespace JustReadIt.Api.Controllers
                 return NotFound();
             }
 
-            return demoBook;
+            if (!string.IsNullOrWhiteSpace(demoBook.CoverObjectKey) && 
+                string.IsNullOrWhiteSpace(_storageOptions.UserContentPublicBaseUrl))
+            {
+                return Problem("Storage:UserContentPublicBaseUrl must be configured before cover URLs can be generated.");
+            }
+
+            return new BookResponseModel
+            {
+                Id = demoBook.Id,
+                Title = demoBook.Title,
+                PublishedYear = demoBook.PublishedYear,
+                Pages = demoBook.Pages,
+                Description = demoBook.Description,
+                Author = demoBook.Author,
+                CoverUrl = BuildPublicUserContentUrl(demoBook.CoverObjectKey)
+            };
         }
 
         [HttpGet("books/{bookId:int}/download-url")]
@@ -134,8 +149,6 @@ namespace JustReadIt.Api.Controllers
             {
                 return objectKey;
             }
-
-            var userContentBaseUrl = _storageOptions.UserContentPublicBaseUrl?.TrimEnd('/');
 
             var baseUrl = _storageOptions.UserContentPublicBaseUrl!.TrimEnd('/');
             var normalizedKey = objectKey.TrimStart('/');

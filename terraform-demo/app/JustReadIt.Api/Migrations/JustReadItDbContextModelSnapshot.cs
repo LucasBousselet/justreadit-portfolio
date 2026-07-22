@@ -93,7 +93,7 @@ namespace JustReadIt.Api.Migrations
                         {
                             Id = 1,
                             AuthorId = 1,
-                            CoverUrl = "/demo-cover.svg",
+                            CoverUrl = "/covers/demo-cover.svg",
                             Description = "A small demo book record loaded from PostgreSQL through Entity Framework Core.",
                             Pages = 128,
                             PublishedYear = 2026,
@@ -103,7 +103,7 @@ namespace JustReadIt.Api.Migrations
                         {
                             Id = 2,
                             AuthorId = 1,
-                            CoverUrl = "/demo-cover.svg",
+                            CoverUrl = "/covers/demo-cover.svg",
                             Description = "Fake seed data that proves one author can have several books.",
                             Pages = 214,
                             PublishedYear = 2025,
@@ -113,7 +113,7 @@ namespace JustReadIt.Api.Migrations
                         {
                             Id = 3,
                             AuthorId = 2,
-                            CoverUrl = "/demo-cover.svg",
+                            CoverUrl = "/covers/demo-cover.svg",
                             Description = "A fictional book used to verify the Author-to-Books relationship.",
                             Pages = 176,
                             PublishedYear = 2024,

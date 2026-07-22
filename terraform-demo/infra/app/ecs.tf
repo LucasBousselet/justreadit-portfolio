@@ -62,10 +62,10 @@ resource "aws_ecs_task_definition" "justreadit_task_definition" {
         {
           name  = "Storage__DemoEbookKey"
           value = aws_s3_object.demo_ebook.key
-        }, 
+        },
         {
           name  = "Storage__UserContentPublicBaseUrl"
-          value = "https://${aws_cloudfront_distribution.user_content_s3_distribution.domain_name}
+          value = "https://${aws_cloudfront_distribution.user_content_s3_distribution.domain_name}"
         }
       ]
 
@@ -102,7 +102,7 @@ resource "aws_ecs_service" "ecs_service" {
       aws_subnet.private_subnet_2.id
     ]
     security_groups  = [aws_security_group.sg_ecs_task.id]
-    assign_public_ip = true
+    assign_public_ip = false
   }
 
   load_balancer {

@@ -31,7 +31,7 @@ resource "aws_route_table" "justreadit_private_route_table" {
   vpc_id = aws_vpc.justreadit_vpc.id
 
   route {
-    cidr_block = "0.0.0.0/0"
+    cidr_block     = "0.0.0.0/0"
     nat_gateway_id = aws_nat_gateway.public_nat_gateway.id
   }
 
@@ -154,7 +154,7 @@ resource "aws_lb_listener" "alb_listener_front_end" {
 
 # Creates an Elastic IP
 resource "aws_eip" "nat_eip" {
-  domain   = "vpc"
+  domain = "vpc"
 }
 
 resource "aws_nat_gateway" "public_nat_gateway" {
@@ -168,14 +168,19 @@ resource "aws_nat_gateway" "public_nat_gateway" {
   tags = local.tags
 }
 
+# Adding a VPC Gateway Endpoint to a VPC affects all subnets that are linked to 
+# the route tables configured in that VPC Endpoint.
+# It adds a route that captures S3-bound traffic using a prefix-list and sends it through
+# the endpoint, instead of using the NAT Gateway. 
+# The endpoint policy must allow every S3 bucket that the workloads on the subnets need. 
 resource "aws_vpc_endpoint" "s3_vpc_endpoint" {
-  vpc_id       = aws_vpc.justreadit_vpc.id
-  service_name = "com.amazonaws.ca-central-1.s3"
+  vpc_id            = aws_vpc.justreadit_vpc.id
+  service_name      = "com.amazonaws.ca-central-1.s3"
   vpc_endpoint_type = "Gateway" # Explicitly set
 
   route_table_ids = [
     aws_route_table.justreadit_private_route_table.id
   ]
 
-  policy = aws_iam_role_policy.vpc_gateway_endpoint_access_user_content_s3.json
+  policy = data.aws_iam_role_policy.vpc_gateway_endpoint_access_user_content_s3_policy.json
 }

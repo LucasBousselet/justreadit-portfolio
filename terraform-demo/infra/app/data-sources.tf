@@ -31,6 +31,50 @@ data "aws_iam_policy_document" "origin_policy_website_bucket" {
   }
 }
 
+data "aws_iam_policy_document" "vpc_gateway_endpoint_access_user_content_s3_policy" {
+  statement {
+    sid    = "AllowWriteOperationsToUserContentBucket"
+    effect = "Allow"
+
+    principals {
+      type        = "*"
+      identifiers = ["*"]
+    }
+
+    actions = [
+        "s3:GetObject",
+        "s3:PutObject",
+        "s3:DeleteObject",
+        "s3:ListBucket"
+    ]
+
+    # Only allows to /covers and /banners through the VPC Endpoint
+    resources = [
+          aws_s3_bucket.justreadit_user_content_bucket.arn,
+          "${aws_s3_bucket.justreadit_user_content_bucket.arn}/*"
+    ]
+  }
+
+  # Allows ECR to pull Docker image layers
+  statement {
+    sid    = "AllowEcrImageLayerDownloads"
+    effect = "Allow"
+
+    principals {
+      type        = "*"
+      identifiers = ["*"]
+    }
+
+    actions = [
+        "s3:GetObject"
+    ]
+
+    resources = [
+          "arn:aws:s3:::prod-ca-central-1-starport-layer-bucket/*",
+    ]
+  }
+}
+
 data "aws_iam_policy_document" "origin_policy_user_content_bucket" {
   statement {
     sid    = "AllowCloudFrontServicePrincipalReadWrite"
@@ -49,8 +93,8 @@ data "aws_iam_policy_document" "origin_policy_user_content_bucket" {
     # Only allows the CloudFront distribution access to /covers and /banners folder inside the bucket
     # That way, the folder /ebooks and its contents will never be served through CloudFront, only via the S3 presigned URLs
     resources = [
-      "${aws_s3_bucket.justreadit_user_content_bucket.arn}/covers",
-      "${aws_s3_bucket.justreadit_user_content_bucket.arn}/banners*"
+      "${aws_s3_bucket.justreadit_user_content_bucket.arn}/covers/*",
+      "${aws_s3_bucket.justreadit_user_content_bucket.arn}/banners/*"
     ]
 
     condition {

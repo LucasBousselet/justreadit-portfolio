@@ -87,29 +87,3 @@ resource "aws_iam_role_policy" "ecs_task_read_rds_secret" {
     ]
   })
 }
-
-
-resource "aws_iam_role_policy" "vpc_gateway_endpoint_access_user_content_s3" {
-  name = "${local.name}-vpc-gateway-endpoint-write-user-content-s3"
-
-  policy = jsonencode({
-    Version = "2012-10-17"
-    Statement = [
-      {
-        Sid    = "AllowWriteOperationsToUserContentBucket"
-        Effect = "Allow"
-        Principal = "*"
-        Action = [
-          "s3:GetObject",
-          "s3:PutObject",
-          "s3:DeleteObject",
-          "s3:ListBucket"
-        ]
-        Resource = [
-          aws_s3_bucket.justreadit_user_content_bucket.arn,
-          "${aws_s3_bucket.justreadit_user_content_bucket.arn}/*"
-        ]
-      }
-    ]
-  })
-}
