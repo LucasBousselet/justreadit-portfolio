@@ -76,8 +76,8 @@ function App() {
       <section className="architecture-note">
         <h2>What this demonstrates</h2>
         <div className="note-grid">
-          <Note title="RDS-backed API data" body="The featured book can come from your ECS backend, which reads from Postgres/RDS." />
-          <Note title="Public image delivery" body="The cover image can later be served from S3 through CloudFront." />
+          <Note title="RDS-backed API data" body="The featured book is coming from your ECS backend, which reads from Postgres/RDS." />
+          <Note title="Public image delivery" body="The cover image is served from S3 through CloudFront." />
           <Note title="Private e-book download" body="The download button is ready for a backend endpoint that returns a short-lived S3 pre-signed URL." />
         </div>
       </section>

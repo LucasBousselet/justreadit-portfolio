@@ -19,12 +19,18 @@ Basic API Docker image is ~100 MB
 | VPC / Subnet / Internet Gateway | Free |
 | Security Group / Route Table | Free |
 | Public IPv4 Addresses | $0.005/hour per IPv4 |
+| Private IPv4 Addresses | Free |
 | Outbound (internet) Data transfer | $0.09/GB < 10TB |
-| Elastic IP | |
-| NAT Gateway | |
+| Elastic IP | $0.005/hour even idle |
+| NAT Gateway | $0.045/hour |
+| NAT Gateway Data transfer | $0.045/GB |
 
-With only 1 ECS task having a network interface / IP
-15 2-hour learning sessions per month = 15 * 2 hours * 1 public IPv4 * $0.005/hour = about $0.15 per month 
+With:
+- ECS task running in private subnet = only private IP and no charge
+- negligible NAT Gateway data transfer fees
+- 1 elastic IP for the NAT Gateway
+- 2 public IPs for the ALB spanning 2 public subnets
+15 2-hour learning sessions per month = 15 * 2 hours * (1 NAT Gateway * $0.045/hour + 3 public IPv4 * $0.005/hour) = about $1.80 per month 
 
 # ECS
 
