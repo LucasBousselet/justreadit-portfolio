@@ -61,9 +61,9 @@ namespace JustReadIt.Api.Migrations
             migrationBuilder.Sql("""
                 INSERT INTO books ("Id", "AuthorId", "CoverUrl", "Description", "Pages", "PublishedYear", "Title")
                 VALUES
-                    (1, 1, '/covers/demo-cover.svg', 'A small demo book record loaded from PostgreSQL through Entity Framework Core.', 128, 2026, 'The Terraform Reader'),
-                    (2, 1, '/covers/demo-cover.svg', 'Fake seed data that proves one author can have several books.', 214, 2025, 'Practical Cloud Notes'),
-                    (3, 2, '/covers/demo-cover.svg', 'A fictional book used to verify the Author-to-Books relationship.', 176, 2024, 'Postgres for Page Turners');
+                    (1, 1, 'covers/demo-cover.svg', 'A small demo book record loaded from PostgreSQL through Entity Framework Core.', 128, 2026, 'The Terraform Reader'),
+                    (2, 1, 'covers/demo-cover.svg', 'Fake seed data that proves one author can have several books.', 214, 2025, 'Practical Cloud Notes'),
+                    (3, 2, 'covers/demo-cover.svg', 'A fictional book used to verify the Author-to-Books relationship.', 176, 2024, 'Postgres for Page Turners');
                 """);
 
             migrationBuilder.CreateIndex(

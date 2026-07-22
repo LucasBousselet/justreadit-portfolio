@@ -48,7 +48,6 @@ data "aws_iam_policy_document" "vpc_gateway_endpoint_access_user_content_s3_poli
         "s3:ListBucket"
     ]
 
-    # Only allows to /covers and /banners through the VPC Endpoint
     resources = [
           aws_s3_bucket.justreadit_user_content_bucket.arn,
           "${aws_s3_bucket.justreadit_user_content_bucket.arn}/*"

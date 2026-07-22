@@ -182,5 +182,5 @@ resource "aws_vpc_endpoint" "s3_vpc_endpoint" {
     aws_route_table.justreadit_private_route_table.id
   ]
 
-  policy = data.aws_iam_role_policy.vpc_gateway_endpoint_access_user_content_s3_policy.json
+  policy = data.aws_iam_policy_document.vpc_gateway_endpoint_access_user_content_s3_policy.json
 }
