@@ -62,5 +62,15 @@ Severity: High
 Evidence: In storage.tf, the DB is configured to run on a `db.t4g.micro` instance which only has 1 GiB of memory, not enough for the expected traffic of the production application. It also uses a `gp2` volume, which AWS recommends migrating to `gp3` to decouple disk performance and storage capacity
 Impact: Medium/high, the database will be overwhelmed when real traffic starts coming in, and will experience slow downs or crash if memory pressure is too high
 Recommendation: Migrate to a bigger instance such as `db.t4g.medium` and monitor traffic in order to see if further adjustments are needed. Also migrate to a `gp3` volume type
-Effort: Low/medium, changing storage class is easy but changing instance class will result in some downtime, which needs to be planned when the app is receiving little to no traffic. Failover strategies might be necessary depending on whether a few minutes of downtime is acceptable. 
+Effort: Low/medium, changing storage class is easy but changing instance class will result in some downtime, which needs to be planned when the app is receiving little to no traffic. Failover strategies might be necessary depending on whether a few minutes of downtime is acceptable
 Priority: High 
+
+### Security
+
+Finding: Un-encrypted traffic between CloudFront and ALB
+Severity: Medium/high
+Evidence: In networking.tf, the ALB listener `alb_listener_front_end` is using HTTP (port 80) and is not configured with an SSL certificate. In effect, traffic between CloudFront and ALB is plain text 
+Impact: Medium, end-users will not notice a difference, but an attacker listening on the network jump between CloudFront and ALB will be able to see plain text HTTP traffic. Cookies, headers, API payloads are exposed. Authenticated users' private information and payments data must be processed securely
+Recommendation: Attach an SSL certificate to the ALB, and encrypt traffic between CloudFront and ALB by making the origin use HTTPS
+Effort: Medium, need to purchase an SSL certificate and import it to AWS. Then Terraform configuration must be updated to make the CloudFront origin for ALB use HTTPS, and configure the listeners to use the certificate and accept only HTTPS, plus redirecting HTTP traffic to HTTPS
+Priority: Medium/high 
