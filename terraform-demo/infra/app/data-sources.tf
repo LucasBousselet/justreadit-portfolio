@@ -54,7 +54,8 @@ data "aws_iam_policy_document" "vpc_gateway_endpoint_access_user_content_s3_poli
     ]
   }
 
-  # Allows ECR to pull Docker image layers
+  # Allows ECS tasks in private subnets to pull ECR Docker image layers 
+  # stored in the AWS-managed S3 regional bucket
   statement {
     sid    = "AllowEcrImageLayerDownloads"
     effect = "Allow"
@@ -112,6 +113,7 @@ data "aws_cloudfront_cache_policy" "caching_disabled" {
   name = "Managed-CachingDisabled"
 }
 
+# Fetches an AWS-managed list of CloudFront IPs (origin side, not viewer)
 data "aws_ec2_managed_prefix_list" "cloudfront_origin_facing" {
   name = "com.amazonaws.global.cloudfront.origin-facing"
 }

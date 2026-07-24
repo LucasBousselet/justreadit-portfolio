@@ -69,8 +69,35 @@ Priority: High
 
 Finding: Un-encrypted traffic between CloudFront and ALB
 Severity: Medium/high
-Evidence: In networking.tf, the ALB listener `alb_listener_front_end` is using HTTP (port 80) and is not configured with an SSL certificate. In effect, traffic between CloudFront and ALB is plain text 
+Evidence: In networking.tf, the ALB listener `alb_listener_front_end` is using HTTP (port 80) and is not configured with an SSL certificate. Traffic between CloudFront and ALB is plain text 
 Impact: Medium, end-users will not notice a difference, but an attacker listening on the network jump between CloudFront and ALB will be able to see plain text HTTP traffic. Cookies, headers, API payloads are exposed. Authenticated users' private information and payments data must be processed securely
 Recommendation: Attach an SSL certificate to the ALB, and encrypt traffic between CloudFront and ALB by making the origin use HTTPS
 Effort: Medium, need to purchase an SSL certificate and import it to AWS. Then Terraform configuration must be updated to make the CloudFront origin for ALB use HTTPS, and configure the listeners to use the certificate and accept only HTTPS, plus redirecting HTTP traffic to HTTPS
 Priority: Medium/high 
+
+Finding: ALB security group allows inbound traffic from any CloudFront distribution
+Severity: Low/medium 
+Evidence: ALB is public facing, but only allowing inbound traffic get past the security group if a matches the CloudFront prefix list (in `aws_vpc_security_group_ingress_rule.allow_alb_https_ipv4`). That includes any third party CloudFront distribution, which could open to malicious traffic. There is no additional security to prove that incoming traffic is originating from the company CloudFront.
+Impact: Low/medium
+Recommendation: Pass a custom header such as `X-Origin-Verify` set to a secret value, along with the request CloudFront is sending the ALB. The ALB will read the header and confirm that the request can be forward to its destination. If the header is missing or incorrect, the request is dropped. This remediation should come after HTTPS is implemented between CloudFront and the ALB, so that the traffic/headers are encrypted
+Effort: Low
+Priority: Low/medium 
+
+### Operational
+
+Finding: ALB access logs are disabled
+Severity: Low
+Evidence: in `aws_lb.alb`, `access_logs` is not configured. Access logs can be useful for debugging ("Did the request reach ALB at all?"), securiy ("Are requests hitting the ALB directly or going through CloudFront first?"), and business insights ("Which routes are most common?")
+Impact: Low
+Recommendation: Turn on if you are troubleshooting network issues involving the ALB, or wish to run analytics queries on the traffic.
+Effort: Low
+Priority: Low 
+
+Finding: ECS logs in CloudWatch are retained for 7 days only
+Severity: Low/medium
+Evidence: in `aws_cloudwatch_log_group.justreadit_log_group`, `retention_in_days` is set to `7`, which is short-lived for a production environment
+Impact: Medium
+Recommendation: Increase log retention to 6 months to a 1 year for the production environment. In the event of an incident, it is useful to have a complete history for troubleshooting efficiently.
+Effort: Low
+Priority: Medium
+
