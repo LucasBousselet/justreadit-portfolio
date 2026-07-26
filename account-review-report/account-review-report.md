@@ -33,9 +33,21 @@ ToDo once finished
 
 ## Scorecard
 
-| Severity | Evidence | Impact | Recommendation | Effort | Priority |
-| :--- | :--- | :--- | :--- | :--- | :--- |
-| ToDo | ToDo | ToDo | ToDo | ToDo | ToDo |
+| Area | Score | Risk | Summary |
+| :--- | :--- | :--- | :--- |
+| Reliability | 2/5 | High | The correct architecture elements are in place (CloudFront, ALB, health checks), but are not production-ready yet. The API only runs one task and RDS DB is likely too tiny for real traffic |
+| Security | 3/5 | Medium | Placing ECS tasks and RDS DB in private subnets is good, but TLS protocol should be set up between CloudFront and ALB origin for securing data in transit |
+| Cost Management | 3/5 | Medium | Cost-conscious sizing is present, but budgets and more granular tags would help monitor and control costs |
+| Observability | 3/5 | Medium | ECS logs exist but need a longer retention period. Alarms should be configured to quickly get notified of an incident |
+
+Scoring legend
+| Score | Meaning |
+| :--- | :--- |
+| 1 | Critical gaps; not production-ready |
+| 2 | Some foundation exists, but important risks remain |
+| 3 | Reasonable baseline with clear improvements needed |
+| 4 | Strong posture with minor gaps |
+| 5 | Mature, monitored, and well-documented |
 
 ## Findings
 
@@ -93,11 +105,11 @@ Finding: CloudWatch alarms and AWS Budgets are not configured
 Severity: Medium
 Evidence: Terraform does not define alarms or budgets to alert the team when an incident occurs, or when AWS-related costs are going over-budget (or are predicted to)
 Impact: Medium
-Recommendation: Create a simple monthly budget and associated alarm. Create alarms when metrics are crossing a threshold (ex: consistent CPU usage on ECS task > 90%). Tag resources into logical groups (compute, network, storage) to make it easy to breakdown cost reports
+Recommendation: Create a simple monthly budget and associated alarm. Create alarms when metrics are crossing a threshold (ex: CPU usage on ECS task > 90%). Tag resources into logical groups (compute, network, storage) to make it easy to breakdown cost reports
 Effort: Medium
 Priority: Medium
 
-### Observability and Operations
+### Observability
 
 Finding: ALB access logs are disabled
 Severity: Low
