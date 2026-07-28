@@ -11,10 +11,10 @@ JustReadit is a demo SaaS e-book marketplace app deployed by Terraform on AWS. I
 
 ## Scope 
 
-This reports reviewed the suggested case-study architecture against the Terraform infrastructure-as-code demo app.
+This report reviewed the suggested case-study architecture against the Terraform infrastructure-as-code demo app.
 
 Reviewed:
-- Monthly cost driver
+- Monthly cost drivers
 - IAM and access controls
 - Network security
 - Logging and monitoring
@@ -29,7 +29,11 @@ Not reviewed:
 
 ## Executive Summary
 
-ToDo once finished
+The current architecture is laying reasonable groundwork for a SaaS, but needs a few adjustments in order to go from a pre-launch to a production-ready product. 
+
+The foundational technical decisions that went into the pre-launch app are sound, using ECS Fargate, RDS PostgreSQL, CloudFront and S3 makes for a software that can be managed by a small team with a clear path to scale up and grow without large refactoring efforts. The biggest risks are using a single ECS task, RDS database that is still configured for pre-launch, but they can be quickly addressed.
+
+Security-wise having ECS tasks and database in private subnets is a safe decision, but using HTTPS between CloudFront and origin should be a requirement for launch. Setting up CloudWatch alarms and AWS Budgets and longer log retention policies are also essential to help the team and the company as a whole maintain the product running in good condition, react efficiently to failures, and control costs.
 
 ## Scorecard
 
@@ -49,16 +53,27 @@ Scoring legend
 | 4 | Strong posture with minor gaps |
 | 5 | Mature, monitored, and well-documented |
 
+## Prioritized Recommendations
+
+| Priority | Recommendation |  Area | Effort |
+| :--- | :--- | :--- | :--- |
+| P1 | Run at least 2 ECS tasks | Reiliability | Low |
+| P1 | Harden RDS production settings | Reliability | Low/Medium |
+| P2 | Add HTTPS between CloudFront and ALB | Security | Medium |
+| P2 | Add key CloudWatch alarms | Observability | Medium |
+| P3 | Configure AWS Budgets | Cost | Low |
+| P3 | Enable ALB access logs and adjust log retention period | Observability | Low |
+
 ## Findings
 
 ### Reliability
 
-Finding: ECS service is running only 1 task at all time
+Finding: ECS service is running only 1 task at all times
 Severity: High
-Evidence: In ecs.tf, `aws_ecs_service.ecs_service` has `desired_count`set to 1
+Evidence: In ecs.tf, `aws_ecs_service.ecs_service` has `desired_count` set to 1
 Impact: High, if the only task becomes unhealthy, the whole API is unreachable 
-Recommendation: Maintain at least 2 tasks running at all time, in different AZs
-Effort: Low, ECS service is already spanning 2 AZs and target registration is handled automatically. By changing `desired_count` to 2, ECS will to its best-effort to spread the tasks across AZs
+Recommendation: Maintain at least 2 tasks running at all times, in different AZs
+Effort: Low, ECS service is already spanning 2 AZs and target registration is handled automatically. By changing `desired_count` to 2, ECS will make a best-effort placement across the configured subnets
 Priority: High 
 
 Finding: NAT Gateway is Single-AZ
@@ -69,17 +84,25 @@ There is a cost vs reliability tradeoff here:
 - a Single-AZ NAT Gateway inccurs an hourly cost (~30$/month) + data transfer charges, but it is a single point of failure that can cause private ECS tasks to lose outbound access to services such as Secrets Manager or CloudWatch
 - multiple NAT Gateways in different AZs multiply the NAT-related costs with each additional one, but the application becomes resilient to an AZ-level incident.
 - VPC endpoints have cheaper hourly and data transfer prices, but one VPC endpoint is required per service that needs to communicate with private subnets, and adds complexity.
-Recommendation: Add another NAT Gateway in a second AZ, or use a regional NAT Gateway spanning 2 AZs
+Recommendation: Add another NAT Gateway in a second AZ, or use the Regional NAT Gateway availability mode
 Effort: Low, split the shared private route table in two, one for each private subnet. Then create a second NAT Gateway and have both private route table use a different one 
 Priority: Medium 
 
-Finding: RDS DB is pre-launch/demo sized
+Finding: RDS DB still sized for pre-launch
 Severity: Medium/high
-Evidence: In storage.tf, the DB is configured to run on a `db.t4g.micro` instance which only has 1 GiB of memory, not enough for the expected traffic of the production application. It also uses a `gp2` volume, which AWS recommends migrating to `gp3` to decouple disk performance and storage capacity. Besides, `deletion_protection` and `skip_final_snapshot` are disabled and should be enabled for a production database. Depending on growth, considering a plan to upgrade to a Multi-AZ deployment would be useful. 
-Impact: Medium/high, the database will be overwhelmed when real traffic starts coming in, and will experience slow downs or crash if memory pressure is too high. Lack of deletion protection or final snapshot means that the database could be mistakenly dropped without recovery option.
+Evidence: In storage.tf, the DB is configured to run on a `db.t4g.micro` instance which only has 1 GiB of memory, not enough for the expected traffic of the production application. It also uses a `gp2` volume, which AWS recommends migrating to `gp3` to decouple disk performance and storage capacity 
+Impact: Medium/high, the database is likely to become a bottleneck under real traffic, and could experience slow downs or crashes if memory pressure is too high
 Recommendation: Migrate to a bigger instance such as `db.t4g.medium` and monitor traffic in order to see if further adjustments are needed. Also migrate to a `gp3` volume type
 Effort: Low/medium, changing storage class is easy but changing instance class will result in some downtime, which needs to be planned when the app is receiving little to no traffic. Failover strategies might be necessary depending on whether a few minutes of downtime is acceptable
-Priority: High 
+Priority: High
+
+Finding: RDS DB resiliency is too weak
+Severity: Medium/high
+Evidence: In storage.tf, the DB has `deletion_protection` and `skip_final_snapshot` disabled, when it should be enabled for a production database. Besides, depending on growth, considering a plan to upgrade to a Multi-AZ deployment would be useful. The backup retention period of 7 days is too short for a production environment
+Impact: Medium/high, lack of deletion protection or final snapshot means that the database could be mistakenly dropped or corrupted without recovery option.
+Recommendation: Enable both `deletion_protection` and `skip_final_snapshot`. Increase backup retention to one to two months. To keep costs low, the DB can use a Multi-AZ instance deployment as a failover mechanism. If growth calls for it, a Multi-AZ cluster deployment with writer/reader instances can be considered
+Effort: Low, it requires only changes to Terraform configuration
+Priority: Medium/high 
 
 ### Security
 
@@ -88,7 +111,7 @@ Severity: Medium
 Evidence: In networking.tf, the ALB listener `alb_listener_front_end` is using HTTP (port 80) and is not configured with an SSL certificate. Traffic between CloudFront and ALB is plain text 
 Impact: Medium, end-users will not notice a difference, but an attacker listening on the network jump between CloudFront and ALB will be able to see plain text HTTP traffic. Cookies, headers, API payloads are exposed. Authenticated users' private information and payments data must be processed securely
 Recommendation: Attach an SSL certificate to the ALB, and encrypt traffic between CloudFront and ALB by making the origin use HTTPS
-Effort: Medium, configure an SSL certificate and import it to AWS. Then Terraform configuration must be updated to make the ALB use HTTPS, and CloudFront to origin protocol to accept only HTTPS. HTTP traffic can be redirected to HTTPS
+Effort: Medium, request an ACM certificate for the ALB origin domain or use an existing one. Then update Terraform configuration to attach the certificate to the ALB listener, and update CloudFront to connect to the ALB over HTTPS only. HTTP traffic can be redirected to HTTPS
 Priority: Medium/high 
 
 Finding: ALB security group allows inbound traffic from any CloudFront distribution
@@ -101,13 +124,13 @@ Priority: Low/medium
 
 ### Cost Management
 
-Finding: CloudWatch alarms and AWS Budgets are not configured
-Severity: Medium
-Evidence: Terraform does not define alarms or budgets to alert the team when an incident occurs, or when AWS-related costs are going over-budget (or are predicted to)
-Impact: Medium
-Recommendation: Create a simple monthly budget and associated alarm. Create alarms when metrics are crossing a threshold (ex: CPU usage on ECS task > 90%). Tag resources into logical groups (compute, network, storage) to make it easy to breakdown cost reports
-Effort: Medium
-Priority: Medium
+Finding: AWS Budgets are not configured
+Severity: Low
+Evidence: Terraform does not define budgets to alert the team when AWS-related costs are going over-budget (or are predicted to)
+Impact: Low/medium
+Recommendation: Create a simple monthly budget and associated alarm. Tag resources into logical groups (compute, network, storage) to make it easy to breakdown cost reports
+Effort: Low/medium
+Priority: Low
 
 ### Observability
 
@@ -123,6 +146,21 @@ Finding: ECS logs in CloudWatch are retained for 7 days only
 Severity: Low/medium
 Evidence: in `aws_cloudwatch_log_group.justreadit_log_group`, `retention_in_days` is set to `7`, which is short-lived for a production environment
 Impact: Medium
-Recommendation: Increase log retention to 6 months to a 1 year for the production environment. In the event of an incident, it is useful to have a complete history for troubleshooting efficiently.
+Recommendation: Increase log retention to 1 to 3 months for the production environment. In the event of an incident, it is useful to have a complete history for troubleshooting efficiently.
 Effort: Low
 Priority: Medium
+
+Finding: CloudWatch alarms are not configured
+Severity: Medium
+Evidence: Terraform does not define alarms to alert the team when an incident occurs with one of the cloud resources
+Impact: Medium
+Recommendation: Create alarms when metrics are crossing a threshold (ex: CPU usage on ECS task > 90%), and set up a SNS topic to dispatch critical events to a company message app / employee emails
+Effort: Medium, need to consider what metrics are worth monitoring for the workloads, and how organize the team to respond effectively in case of problem
+Priority: Medium
+
+## What Is Already Done Well
+
+- Sensitive workloads such as ECS tasks and RDS DB are placed in private subnets with no publicly accessible IP
+- S3 buckets are blocking public access and use Origin Access Control to restrict how they can be modified
+- GitHub Actions workflows use OIDC authentication with short-lived credentials
+
