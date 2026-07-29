@@ -111,7 +111,7 @@ resource "aws_lb" "alb" {
     aws_subnet.public_subnet_2.id
   ]
 
-  # ALB access logs not configured for the demo
+  # ALB access logs not configured for the pre-production version
   #access_logs {
   #  bucket  = aws_s3_bucket.lb_logs.id
   #  prefix  = "test-lb"

@@ -62,7 +62,7 @@ With no significant traffic, the only charge is the base charge.
 
 # CloudWatch
 
-Demo app is well within the monthly free tier:
+Pre-production app is well within the monthly free tier:
 - 10 custom metrics
 - 10 alarms
 - 1 million API requests
@@ -91,7 +91,7 @@ With no significant traffic, the only charge is the compute and storage.
 | Request fees (GET) | $0.0004 per 1,000 requests |
 | Request fees (POST/PUT/LIST) | $0.005 per 1,000 requests |
 
-Request fees are negligeable for a demo. Cost of storing 1 GB per session is:
+Request fees are negligeable for a pre-prod version. Cost of storing 1 GB per session is:
 15 2-hour learning sessions per month = (30 hours / 730 hours) * 1 GB * 0.023 GB/month = about $0.001 per month
 
 # CloudFront
@@ -105,7 +105,7 @@ Request fees are negligeable for a demo. Cost of storing 1 GB per session is:
 | Request fees (HTTPS) | $0.01 per 10,000 requests |
 | Default CloudFront TLS certificate | Free |
 
-Request fees are negligeable for a demo. 
+Request fees are negligeable for a pre-prod version. 
 If we are serving 500 MB per session: about 7.5 GB served
 7.5 GB * $0.085 per GB = about $0.6375 per month
 

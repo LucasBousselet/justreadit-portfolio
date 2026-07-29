@@ -7,11 +7,11 @@ Workload: containerized SaaS application for an e-book marketplace
 
 ## Context
 
-JustReadit is a demo SaaS e-book marketplace app deployed by Terraform on AWS. It includes a frontend, API backend, database, object storage and basic CI/CD.
+JustReadit is a fictinal SaaS e-book marketplace app deployed by Terraform on AWS. It includes a frontend, API backend, database, object storage and basic CI/CD.
 
 ## Scope / Limitations
 
-This report reviewed the suggested case-study architecture against the Terraform infrastructure-as-code demo app.
+This report reviewed the suggested case-study architecture against the Terraform infrastructure-as-code pre-production app.
 
 Reviewed:
 - Monthly cost drivers

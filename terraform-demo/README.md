@@ -16,7 +16,7 @@ The goal is to demonstrate a cost-conscious SaaS deployment using ECS Fargate, A
 
 - CI/CD workflows only run on a manual trigger, and not on every commit to the dev/main branches
 - API is only serving 2 demo endpoints to validate communication with browser, database, and S3
-- Demo architecture is running on tiny instances
+- Pre-production architecture is running on tiny instances
 - Monitoring, alarms and cost alerts are not configured
 
 # Milestones

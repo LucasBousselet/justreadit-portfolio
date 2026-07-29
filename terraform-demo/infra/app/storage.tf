@@ -9,7 +9,7 @@ resource "aws_db_instance" "justreadit_postgres_db" {
   identifier                  = "${local.name}-instance-demo"
   username                    = "postgres_admin"
   manage_master_user_password = true # Automatically creates an entry in Secrets Manager
-  skip_final_snapshot         = true # For demo app only
+  skip_final_snapshot         = true # For pre-production app only
   db_subnet_group_name        = aws_db_subnet_group.postgres_subnet_group.name
   publicly_accessible         = false
   storage_encrypted           = true

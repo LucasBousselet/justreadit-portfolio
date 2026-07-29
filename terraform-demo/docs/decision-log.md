@@ -2,7 +2,7 @@
 
 # General
 
-- Terraform and API demo app are structured around the case study work I did on JustReadIt, a fictional e-book marketplace saas.
+- Terraform and API pre-production app are structured around the case study work I did on JustReadIt, a fictional e-book marketplace saas.
 https://github.com/LucasBousselet/aws-saas-case-study
 
 # Networking / Packaging
@@ -14,7 +14,7 @@ https://github.com/LucasBousselet/aws-saas-case-study
 
 # RDS
 
-- No Multi-AZ deployment for the demo project. It's added in the optinal improvement pass
+- No Multi-AZ deployment for the pre-prod project. It's added in the optinal improvement pass
 
 # Private subnets outbound access
 
@@ -22,7 +22,7 @@ https://github.com/LucasBousselet/aws-saas-case-study
 - Outbound access is configured with:
     - 1 NAT Gateway for general internet access, for traffic initiated by the ECS tasks only.
     - 1 VPC Gateway endpoint for access to S3 from private subnets.
-    - No VPC Interface endpoints are configured for the demo project, to keep cost low and complexity reasonable at first. These endpoints would have been created for each AWS resources that ECS private tasks needed access to (ECR, Secrets Manager, CloudWatch), and added to the private route table. They also generate hourly and data transfer costs
+    - No VPC Interface endpoints are configured for the pre-production project, to keep cost low and complexity reasonable at first. These endpoints would have been created for each AWS resources that ECS private tasks needed access to (ECR, Secrets Manager, CloudWatch), and added to the private route table. They also generate hourly and data transfer costs
 
 # CloudFront / S3
 
