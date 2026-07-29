@@ -1,4 +1,4 @@
-  name: Deploy JustReadIt Demo App
+  name: Deploy JustReadIt Pre-Production App
 
   on:
     #push:
@@ -129,5 +129,3 @@
             aws cloudfront create-invalidation \
               --distribution-id "${CLOUDFRONT_DISTRIBUTION_WEBSITE}" \
               --paths "/*"
-
-        

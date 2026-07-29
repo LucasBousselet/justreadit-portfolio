@@ -7,7 +7,7 @@ Workload: containerized SaaS application for an e-book marketplace
 
 ## Context
 
-JustReadit is a fictinal SaaS e-book marketplace app deployed by Terraform on AWS. It includes a frontend, API backend, database, object storage and basic CI/CD.
+JustReadit is a fictional SaaS e-book marketplace app deployed by Terraform on AWS. It includes a frontend, API backend, database, object storage and basic CI/CD.
 
 ## Scope / Limitations
 
@@ -90,7 +90,7 @@ There is a cost vs reliability tradeoff here:
 - multiple NAT Gateways in different AZs multiply the NAT-related costs with each additional one, but the application becomes resilient to an AZ-level incident.
 - VPC endpoints have cheaper hourly and data transfer prices, but one VPC endpoint is required per service that needs to communicate with private subnets, and adds complexity.
 Recommendation: Add another NAT Gateway in a second AZ, or use the Regional NAT Gateway availability mode
-Effort: Low, split the shared private route table in two, one for each private subnet. Then create a second NAT Gateway and have both private route table use a different one. Alternatively you can create a NAT Gateway in Regional availibility mode and set it to span 2 AZs 
+Effort: Low, split the shared private route table in two, one for each private subnet. Then create a second NAT Gateway and have each private route table use the NAT Gateway in its own AZ. Alternatively, create a NAT Gateway in Regional availability mode and configure it for the required AZ coverage
 Priority: Medium 
 
 Finding: RDS DB still sized for pre-launch
@@ -103,9 +103,9 @@ Priority: High
 
 Finding: RDS DB resiliency is too weak
 Severity: Medium/high
-Evidence: In [storage.tf](../terraform-demo/infra/app/storage.tf#L1), the DB has `deletion_protection` and `skip_final_snapshot` disabled, when it should be enabled for a production database. Besides, depending on growth, considering a plan to upgrade to a Multi-AZ deployment would be useful. The backup retention period of 7 days is too short for a production environment
+Evidence: In [storage.tf](../terraform-demo/infra/app/storage.tf#L1), the DB has `deletion_protection` disabled and `skip_final_snapshot` set to `true`, which is not good enough for a production database. Besides, depending on growth, considering a plan to upgrade to a Multi-AZ deployment would be useful. The backup retention period of 7 days is short for a production environment
 Impact: Medium/high, lack of deletion protection or final snapshot means that the database could be mistakenly dropped or corrupted without recovery option.
-Recommendation: Enable both `deletion_protection` and set `skip_final_snapshot` to `false`. Increase backup retention to one month. To keep costs low, the DB can use a Multi-AZ instance deployment as a failover mechanism. If growth calls for it, a Multi-AZ cluster deployment with writer/reader instances can be considered
+Recommendation: Enable `deletion_protection`, set `skip_final_snapshot` to `false`, and configure a final snapshot identifier. Increase backup retention to one month. To keep costs low, the DB can use a Multi-AZ instance deployment as a failover mechanism. If growth calls for it, a Multi-AZ cluster deployment with writer/reader instances can be considered
 Effort: Low, it requires only changes to Terraform configuration
 Priority: Medium/high 
 
@@ -176,4 +176,3 @@ Priority: Medium
 - Sensitive workloads such as ECS tasks and RDS DB are placed in private subnets with no publicly accessible IP
 - S3 buckets are blocking public access and use Origin Access Control to restrict how they can be modified
 - GitHub Actions workflows use OIDC authentication with short-lived credentials
-

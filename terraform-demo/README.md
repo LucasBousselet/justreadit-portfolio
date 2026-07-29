@@ -21,7 +21,7 @@ The goal is to demonstrate a cost-conscious SaaS deployment using ECS Fargate, A
 
 # Milestones
 
-- [x] Milestone 0: Create demo app and Dockerfile
+- [x] Milestone 0: Create pre-production app and Dockerfile
 - [x] Milestone 1: Learn Terraform basics + Deploy one ECR repository
 - [x] Milestone 2: Deploy simplified API container to ECS Fargate, with basic ECS task definition, ECS service, and IAM execution role 
 - [x] Milestone 3: Deploy VPC and ALB, security groups, target group, health check, and CloudWatch log group
